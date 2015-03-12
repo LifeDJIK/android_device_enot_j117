@@ -532,6 +532,7 @@ struct i2c_msg {
 #define I2C_M_RECV_LEN		0x0400	/* length will be first received byte */
 #define I2C_M_NEED_DELAY	0x0020  // add by kfx
 #define I2C_M_REG8_DIRECT	0x0040	// add by kfx
+#define I2C_M_SPECIAL_REG	0x8000	/* LifeDJIK: support for special register address format */
 	__u16 len;		/* msg length				*/
 	__u8 *buf;		/* pointer to msg data			*/
 	__u32 scl_rate;  // add by kfx

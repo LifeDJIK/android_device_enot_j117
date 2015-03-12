@@ -365,6 +365,8 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 	
 	if(msg->flags & I2C_M_TEN)
 		addr_1st = (0xf0 | (((unsigned long) msg->addr & 0x300) >> 7)) & 0xff;
+	else if (msg->flags & I2C_M_SPECIAL_REG)
+		addr_1st = ((msg->addr >> 8) & 0xff);
 	else
 		addr_1st = ((msg->addr << 1) & 0xff);
 	
@@ -400,7 +402,7 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 		dev_info(i2c->dev, "addr: 0x%x receive no ack\n", msg->addr);
 		return -EINVAL;
 	}
-	if(start && (msg->flags & I2C_M_TEN))
+	if(start && ((msg->flags & I2C_M_TEN) || (msg->flags & I2C_M_SPECIAL_REG)))
 		ret = rk29_send_2nd_addr(i2c, msg, start);
 	return ret;
 }
