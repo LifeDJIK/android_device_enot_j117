@@ -1686,6 +1686,14 @@ struct hdmi_platform_data anx7150_data = {
 #endif
 #ifdef CONFIG_I2C1_RK29
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
+#if defined (CONFIG_TOUCHSCREEN_ZT2092)
+    {
+        .type = "zt2092_i2c",
+        .addr = 0x48,
+        .flags = 0,
+        .irq = 102,
+    },
+#endif
 #if defined (CONFIG_RK1000_CONTROL1)
 	{
 		.type			= "rk1000_control",

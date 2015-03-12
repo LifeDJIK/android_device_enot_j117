@@ -1016,4 +1016,63 @@ config ATMEL_MXT1386
                 default n
                 help
                   RK29 ATMEL_MXT1386 touch debug
+
+config TOUCHSCREEN_ZT2092
+        tristate "ZT2092 touchscreen panel support"
+        depends on I2C1_RK29
+        help
+          Say Y here to enable support for I2C connected ZT2092 touch panels.
+
+          To compile this driver as a module, choose M here: the
+          module will be called zt2092_i2c.
+
+        config ZT2092_MULTITOUCH
+                bool "ZT2092 multitouch support"
+                depends on TOUCHSCREEN_ZT2092
+                default y
+                help
+                  ZT2092 multitouch support
+
+        config ZT2092_MIN_X
+                int "ZT2092 min X"
+                depends on TOUCHSCREEN_ZT2092
+                default 50
+                help
+                  ZT2092 min X
+
+        config ZT2092_MIN_Y
+                int "ZT2092 min Y"
+                depends on TOUCHSCREEN_ZT2092
+                default 150
+                help
+                  ZT2092 min Y
+
+        config ZT2092_MAX_X
+                int "ZT2092 max X"
+                depends on TOUCHSCREEN_ZT2092
+                default 3950
+                help
+                  ZT2092 max X
+
+        config ZT2092_MAX_Y
+                int "ZT2092 max Y"
+                depends on TOUCHSCREEN_ZT2092
+                default 3850
+                help
+                  ZT2092 max Y
+
+        config ZT2092_FLIP_X
+                bool "ZT2092 flip X"
+                depends on TOUCHSCREEN_ZT2092
+                default y
+                help
+                  ZT2092 flip X
+
+        config ZT2092_FLIP_Y
+                bool "ZT2092 flip Y"
+                depends on TOUCHSCREEN_ZT2092
+                default y
+                help
+                  ZT2092 flip Y
+
 endif
