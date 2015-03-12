@@ -66,6 +66,10 @@ config LCD_TX23D88VM
 	bool "HITACHI LVDS TX23D88VM (1200x800)"
 config LCD_A050VL01
 	bool "RGB A050VL01"
+config LCD_FOR_ENOT_J117
+    bool "LCD for Enot J117 (800x480)"
+    ---help---
+    Based on RGB Hannstar HSD100PXN
 endchoice
 
 
