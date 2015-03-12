@@ -84,11 +84,12 @@ module_param(limit_temp, int, 0444);
 #endif /* CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP */
 
 enum {
+	DEBUG_NONE	= 0,
 	DEBUG_CHANGE	= 1U << 0,
 	DEBUG_TEMP	= 1U << 1,
 	DEBUG_DISP	= 1U << 2,
 };
-static uint debug_mask = DEBUG_CHANGE;
+static uint debug_mask = DEBUG_NONE;
 module_param(debug_mask, uint, 0644);
 #define dprintk(mask, fmt, ...) do { if (mask & debug_mask) printk(KERN_DEBUG "cpufreq: " fmt, ##__VA_ARGS__); } while (0)
 
