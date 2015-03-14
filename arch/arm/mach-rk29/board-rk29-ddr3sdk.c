@@ -1725,6 +1725,14 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 
 #ifdef CONFIG_I2C2_RK29
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
+#if defined (CONFIG_GS_MMA7660)
+    {
+      .type           = "gs_mma7660",
+      .addr           = 0x4c,
+      .flags          = 0,
+      .irq            = 103,
+    },
+#endif
 #if defined (CONFIG_HANNSTAR_P1003)
     {
       .type           = "p1003_touch",
