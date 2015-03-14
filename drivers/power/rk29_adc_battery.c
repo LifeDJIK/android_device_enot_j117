@@ -527,7 +527,16 @@ static void rk29_adc_battery_capacity_samples(struct rk29_adc_battery_data *bat)
         }
         else
         {
-            gBatCapacityDisChargeCnt = 0;
+            //~ gBatCapacityDisChargeCnt = 0;
+            if (++gBatCapacityDisChargeCnt >= NUM_CHARGE_MIN_SAMPLE)
+            {
+                gBatCapacityDisChargeCnt = 0;
+                if (bat->bat_capacity < 99)
+                {
+                    bat->bat_capacity++;
+                    bat->bat_change  = 1;
+                }
+            }
         }
         
         gBatCapacityChargeCnt = 0;
@@ -554,19 +563,20 @@ static void rk29_adc_battery_poweron_capacity_check(void)
             gBatteryData->bat_capacity = 100;
         }
     }
-    else if (gBatteryData->bat_status != POWER_SUPPLY_STATUS_NOT_CHARGING)
-    {
-        //chargeing state
-        //问题：
-        //1）长时间关机放置后，开机后读取的容量远远大于实际容量怎么办？
-        //2）如果不这样做，短时间关机再开机，前后容量不一致又该怎么办？
-        //3）一下那种方式合适？
-        //gBatteryData->bat_capacity = new_capacity;
-        gBatteryData->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
-    }
+    //~ else if (gBatteryData->bat_status != POWER_SUPPLY_STATUS_NOT_CHARGING)
+    //~ {
+        //~ //chargeing state
+        //~ //问题：
+        //~ //1）长时间关机放置后，开机后读取的容量远远大于实际容量怎么办？
+        //~ //2）如果不这样做，短时间关机再开机，前后容量不一致又该怎么办？
+        //~ //3）一下那种方式合适？
+        //~ //gBatteryData->bat_capacity = new_capacity;
+        //~ gBatteryData->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
+    //~ }
     else
     {
-        gBatteryData->bat_capacity = (new_capacity < old_capacity) ? new_capacity : old_capacity;
+        //~ gBatteryData->bat_capacity = (new_capacity < old_capacity) ? new_capacity : old_capacity;
+        gBatteryData->bat_capacity = new_capacity;
     }
     
     
