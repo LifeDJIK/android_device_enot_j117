@@ -49,8 +49,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_ID 0x99
 #define SENSOR_MIN_WIDTH    640//176
 #define SENSOR_MIN_HEIGHT   480//144
-#define SENSOR_MAX_WIDTH    800//1600
-#define SENSOR_MAX_HEIGHT   600//1200
+#define SENSOR_MAX_WIDTH    640//1600
+#define SENSOR_MAX_HEIGHT   480//1200
 #define SENSOR_INIT_WIDTH	640			/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT  480
 #define SENSOR_INIT_WINSEQADR sensor_vga
@@ -500,9 +500,10 @@ static struct reginfo sensor_init_data[] =
 
 /////  请注意，调整GC0307的镜像和翻转，需要同时修改三个寄存器，如下:
 
-	{0x0f, 0x92},
-	{0x45, 0x25},
-	{0x47, 0x24},	
+	{0x0f, 0xb2},
+	{0x45, 0x27},
+	{0x47, 0x2c},
+
 ///banding setting   
         {  0x01  ,0xfa}, // 24M  
         {  0x02  ,0x70}, 
