@@ -136,7 +136,7 @@ static int bcm4329_set_block(void *data, bool blocked)
         IOMUX_BT_GPIO_POWER;
 
     	if (false == blocked) { 
-       		gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power on */
+                gpio_set_value(BT_GPIO_POWER, GPIO_LOW);  /* bt power on */
                 gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
                 mdelay(20);
     		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
@@ -152,7 +152,7 @@ static int bcm4329_set_block(void *data, bool blocked)
             btWakeupHostUnlock();
 #endif
 		if (!rk29sdk_wifi_power_state) {
-			gpio_set_value(BT_GPIO_POWER, GPIO_LOW);  /* bt power off */
+			gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power off */
     		mdelay(20);	
     		pr_info("bt shut off power\n");
 		}else {

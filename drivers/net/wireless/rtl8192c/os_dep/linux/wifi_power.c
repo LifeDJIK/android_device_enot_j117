@@ -22,7 +22,7 @@
  *					  5 => 14 ( channel 1 ~ 14 is SCAN_ACTIVE )
  *					  default number is "2".
  */
-char init_channel_plan = 2;
+char init_channel_plan = 5;
 
 #if (WIFI_GPIO_POWER_CONTROL == 1)
 
@@ -48,7 +48,7 @@ struct wifi_power power_gpio =
 //		POWER_USE_GPIO, 0, 
 //		0, 0, GPIO_WIFI_POWER, GPIO_HIGH
 		POWER_USE_GPIO, POWER_GPIO_IOMUX, 
-		GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6, GPIO_WIFI_POWER, GPIO_HIGH 
+		GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6, GPIO_WIFI_POWER, GPIO_LOW
 	
 	//SDK
 	//	POWER_NOT_USE_GPIO, 0, 0, 0, 0, 0 
