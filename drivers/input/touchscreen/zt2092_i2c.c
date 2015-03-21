@@ -1,3 +1,21 @@
+/*
+ *  ZT2092 I2C touchscreen driver
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
@@ -21,9 +39,9 @@ typedef struct {
     struct mutex lock;
     struct input_dev *input_dev;
     struct early_suspend early_suspend;
-    int pending_interrupt;
     s16 x_limit;
     s16 y_limit;
+    int last_x[2], last_y[2], last_pressure[2], last_touch;
 } zt2092_i2c_instance_t;
 
 static zt2092_i2c_instance_t *zt2092_i2c_instance;
@@ -123,28 +141,82 @@ static int zt2092_i2c_read(zt2092_i2c_reg_t reg, char *buffer, int size)
     return zt2092_i2c_master_recv(reg, buffer, size);
 }
 
+static s16 zt2092_i2c_noise_filter(s16 *samples)
+{
+    s16 result = 0;
+    s16 minimum, maximum;
+    int skip_minimum = 1, skip_maximum = 1, total_samples = 0;
+    int counter;
+    // Find minimum
+    minimum = samples[0];
+    for (counter = 1; counter < CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT; counter++) {
+        if (samples[counter] < minimum) {
+            minimum = samples[counter];
+        }
+    }
+    // Find maximum
+    maximum = samples[0];
+    for (counter = 1; counter < CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT; counter++) {
+        if (samples[counter] > maximum) {
+            maximum = samples[counter];
+        }
+    }
+    // Compute average (skipping first minimum and first maximum)
+    for (counter = 0; counter < CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT; counter++) {
+        if ((skip_minimum) && (samples[counter] == minimum)) {
+            skip_minimum = 0;
+            continue;
+        }
+        if ((skip_maximum) && (samples[counter] == maximum)) {
+            skip_maximum = 0;
+            continue;
+        }
+        result += samples[counter];
+        total_samples++;
+    }
+    return result / total_samples;
+}
+
 static void zt2092_i2c_get_limits(void)
 {
-    s16 min_x = 0, min_y = 0, max_x = 0, max_y = 0;
-    u8 buffer[2];
-    zt2092_i2c_write(ZT2092_I2C_REG_SEQUENCE,
-        ZT2092_I2C_SEQM_X2 |
-        ZT2092_I2C_ADC_10_TIMES |
-        ZT2092_I2C_INTERVAL_500US);
-    msleep(1);
-    memset(buffer, 0x0, 2);
-    zt2092_i2c_read(ZT2092_I2C_REG_DATA, buffer, 2);
-    max_x = ((((s16) buffer[0]) << 4) | (((s16) buffer[1]) >> 4));
-    printk("%s: max_x = %d (%#x)\n", __func__, max_x, max_x);
-    zt2092_i2c_write(ZT2092_I2C_REG_SEQUENCE,
-        ZT2092_I2C_SEQM_Y2 |
-        ZT2092_I2C_ADC_10_TIMES |
-        ZT2092_I2C_INTERVAL_500US);
-    msleep(1);
-    memset(buffer, 0x0, 2);
-    zt2092_i2c_read(ZT2092_I2C_REG_DATA, buffer, 2);
-    max_y = ((((s16) buffer[0]) << 4) | (((s16) buffer[1]) >> 4));
-    printk("%s: max_y = %d (%#x)\n", __func__, max_y, max_y);
+    int sample_counter, status_counter;
+    s16 x_limit_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    s16 y_limit_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    char buffer[2];
+    u8 status;
+
+    for (sample_counter = 0; sample_counter < CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT; sample_counter++) {
+        zt2092_i2c_write(ZT2092_I2C_REG_SEQUENCE,
+            ZT2092_I2C_SEQM_X2 |
+            ZT2092_I2C_ADC_10_TIMES |
+            ZT2092_I2C_INTERVAL_50US);
+        for (status_counter = 0; status_counter < 15; status_counter++) {
+            zt2092_i2c_read(ZT2092_I2C_REG_STATUS, (char *) &status, 1);
+            if (!status) {
+                break;
+            }
+        }
+        zt2092_i2c_read(ZT2092_I2C_REG_DATA, buffer, 2);
+        x_limit_samples[sample_counter] = ((((s16) buffer[0]) << 4) | (((s16) buffer[1]) >> 4));
+    }
+
+    for (sample_counter = 0; sample_counter < CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT; sample_counter++) {
+        zt2092_i2c_write(ZT2092_I2C_REG_SEQUENCE,
+            ZT2092_I2C_SEQM_Y2 |
+            ZT2092_I2C_ADC_10_TIMES |
+            ZT2092_I2C_INTERVAL_50US);
+        for (status_counter = 0; status_counter < 15; status_counter++) {
+            zt2092_i2c_read(ZT2092_I2C_REG_STATUS, (char *) &status, 1);
+            if (!status) {
+                break;
+            }
+        }
+        zt2092_i2c_read(ZT2092_I2C_REG_DATA, buffer, 2);
+        y_limit_samples[sample_counter] = ((((s16) buffer[0]) << 4) | (((s16) buffer[1]) >> 4));
+    }
+
+    zt2092_i2c_instance->x_limit = zt2092_i2c_noise_filter(x_limit_samples);
+    zt2092_i2c_instance->y_limit = zt2092_i2c_noise_filter(y_limit_samples);
 }
 
 static void zt2092_i2c_initialize(void)
@@ -175,164 +247,187 @@ static int zt2092_i2c_is_pressed(void)
     return result;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void zt2092_i2c_early_suspend(struct early_suspend *handler)
-{
-    printk("%s: called\n", __func__);
-    flush_scheduled_work();
-    if (zt2092_i2c_instance->input_dev->users) {
-        cancel_delayed_work_sync(&zt2092_i2c_instance->delayed_work);
-    }
-    zt2092_i2c_write(ZT2092_I2C_REG_SETUP, ZT2092_I2C_MODE_SLEEP2); // rewrite?
-}
-
-static void zt2092_i2c_late_resume(struct early_suspend *handler)
-{
-    printk("%s: called\n", __func__);
-    zt2092_i2c_write(ZT2092_I2C_REG_SETUP, ZT2092_I2C_MODE_NORMAL); // rewrite?
-}
-#endif
-
 static void zt2092_i2c_delayed_work(struct work_struct *work)
 {
-    int counter;
+    s16 x_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    s16 y_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    s16 z1_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    s16 z2_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    s16 x2_ref_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    s16 y2_ref_samples[CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT];
+    s16 x, y, z1, z2, x2_ref, y2_ref, raw_pressure, pressure;
+    int current_x[2], current_y[2], current_pressure[2];
+    s16 number_of_touches;
+    int sample_counter, status_counter;
     char buffer[12];
-    s16 x, y, z1, z2, pressure;
-    s16 x2_ref, y2_ref;
-    //~ printk("%s: called\n", __func__);
-    zt2092_i2c_write(ZT2092_I2C_REG_SEQUENCE,
-        ZT2092_I2C_SEQM_ALL |
-        ZT2092_I2C_ADC_10_TIMES |
-        ZT2092_I2C_INTERVAL_500US);
-    for (counter = 0; counter < 14; counter++) {
-        u8 status = 0;
-        zt2092_i2c_read(ZT2092_I2C_REG_STATUS, (char *) &status, 1);
-        if (!status) {
-            break;
+    u8 status;
+
+    for (sample_counter = 0; sample_counter < CONFIG_ZT2092_NOISE_FILTER_SAMPLE_COUNT; sample_counter++) {
+        if (!zt2092_i2c_is_pressed()) {
+            input_mt_sync(zt2092_i2c_instance->input_dev);
+            if (zt2092_i2c_instance->last_touch != 0) {
+                input_report_key(zt2092_i2c_instance->input_dev, BTN_TOUCH, 0);
+                zt2092_i2c_instance->last_touch = 0;
+            }
+            input_sync(zt2092_i2c_instance->input_dev);
+            enable_irq(zt2092_i2c_instance->i2c_client->irq);
+            return;
+        }
+        zt2092_i2c_write(ZT2092_I2C_REG_SEQUENCE,
+            ZT2092_I2C_SEQM_ALL |
+            ZT2092_I2C_ADC_10_TIMES |
+            ZT2092_I2C_INTERVAL_50US);
+        for (status_counter = 0; status_counter < 15; status_counter++) {
+            zt2092_i2c_read(ZT2092_I2C_REG_STATUS, (char *) &status, 1);
+            if (!status) {
+                break;
+            }
+        }
+        zt2092_i2c_read(ZT2092_I2C_REG_DATA, buffer, 12);
+        x_samples[sample_counter] = ((((s16) buffer[0]) << 4) | (((s16) buffer[1]) >> 4));
+        y_samples[sample_counter] = ((((s16) buffer[2]) << 4) | (((s16) buffer[3]) >> 4));
+        z1_samples[sample_counter] = ((((s16) buffer[4]) << 4) | (((s16) buffer[5]) >> 4));
+        z2_samples[sample_counter] = ((((s16) buffer[6]) << 4) | (((s16) buffer[7]) >> 4));
+        x2_ref_samples[sample_counter] = ((((s16) buffer[8]) << 4) | (((s16) buffer[9]) >> 4));
+        y2_ref_samples[sample_counter] = ((((s16) buffer[10]) << 4) | (((s16) buffer[11]) >> 4));
+    }
+
+    x = zt2092_i2c_noise_filter(x_samples);
+    y = zt2092_i2c_noise_filter(y_samples);
+    z1 = zt2092_i2c_noise_filter(z1_samples);
+    z2 = zt2092_i2c_noise_filter(z2_samples);
+    x2_ref = zt2092_i2c_noise_filter(x2_ref_samples);
+    y2_ref = zt2092_i2c_noise_filter(y2_ref_samples);
+
+    raw_pressure = 0xFFFF;
+    if ((z1 > 0) && (z2 > z1)) {
+        raw_pressure = (x * (z2 - z1)) / (4 * z1);
+    }
+    pressure = (((raw_pressure - CONFIG_ZT2092_MIN_RAW_PRESSURE) * (CONFIG_ZT2092_MAX_PRESSURE - CONFIG_ZT2092_MIN_PRESSURE)) / (CONFIG_ZT2092_MAX_RAW_PRESSURE - CONFIG_ZT2092_MIN_RAW_PRESSURE)) + CONFIG_ZT2092_MIN_PRESSURE;
+
+    number_of_touches = 1;
+    if ((((zt2092_i2c_instance->x_limit - x2_ref) >= CONFIG_ZT2092_MULTITOUCH_THRESHOLD) || ((zt2092_i2c_instance->y_limit - y2_ref) >= CONFIG_ZT2092_MULTITOUCH_THRESHOLD)) && (raw_pressure <= CONFIG_ZT2092_MIN_RAW_PRESSURE)) {
+        number_of_touches = 2;
+    } else if ((((zt2092_i2c_instance->x_limit - x2_ref) < CONFIG_ZT2092_MULTITOUCH_THRESHOLD) && ((zt2092_i2c_instance->y_limit - y2_ref) < CONFIG_ZT2092_MULTITOUCH_THRESHOLD)) && (raw_pressure <= CONFIG_ZT2092_MAX_RAW_PRESSURE)) {
+        number_of_touches = 1;
+    }
+    if ((raw_pressure == 0) || (raw_pressure == 0xFFFF)) {
+        number_of_touches = 0;
+    }
+
+    if (number_of_touches == 2) {
+        // TODO: double-touch support
+        number_of_touches = 0;
+    }
+
+    if (number_of_touches == 1) {
+#ifndef CONFIG_ZT2092_FLIP_X
+        current_x[0] = x;
+#else
+        current_x[0] = CONFIG_ZT2092_MAX_X - x + CONFIG_ZT2092_MIN_X;
+#endif
+#ifndef CONFIG_ZT2092_FLIP_Y
+        current_y[0] = y;
+#else
+        current_y[0] = CONFIG_ZT2092_MAX_Y - y + CONFIG_ZT2092_MIN_Y;
+#endif
+#ifndef CONFIG_ZT2092_FLIP_PRESSURE
+        current_pressure[0] = pressure;
+#else
+        current_pressure[0] = CONFIG_ZT2092_MAX_PRESSURE - pressure + CONFIG_ZT2092_MIN_PRESSURE;
+#endif
+    }
+
+    if (number_of_touches > 0) {
+        for (sample_counter = 0; sample_counter < number_of_touches; sample_counter++) {
+            if (((current_x[sample_counter] > CONFIG_ZT2092_MAX_X) && ((current_x[sample_counter] - CONFIG_ZT2092_MAX_X) > CONFIG_ZT2092_NOISE_BLOCK_LIMIT_THRESHOLD)) ||
+                ((current_x[sample_counter] < CONFIG_ZT2092_MIN_X) && ((CONFIG_ZT2092_MIN_X - current_x[sample_counter]) > CONFIG_ZT2092_NOISE_BLOCK_LIMIT_THRESHOLD)) ||
+                ((current_y[sample_counter] > CONFIG_ZT2092_MAX_Y) && ((current_y[sample_counter] - CONFIG_ZT2092_MAX_Y) > CONFIG_ZT2092_NOISE_BLOCK_LIMIT_THRESHOLD)) ||
+                ((current_y[sample_counter] < CONFIG_ZT2092_MIN_Y) && ((CONFIG_ZT2092_MIN_Y - current_y[sample_counter]) > CONFIG_ZT2092_NOISE_BLOCK_LIMIT_THRESHOLD))) {
+                number_of_touches = 0;
+                break;
+            }
+            if ((((zt2092_i2c_instance->last_x[sample_counter] >= current_x[sample_counter]) && ((zt2092_i2c_instance->last_x[sample_counter] - current_x[sample_counter]) < CONFIG_ZT2092_NOISE_BLOCK_MIN_DELTA_THRESHOLD)) ||
+                ((zt2092_i2c_instance->last_x[sample_counter] < current_x[sample_counter]) && ((current_x[sample_counter] - zt2092_i2c_instance->last_x[sample_counter]) < CONFIG_ZT2092_NOISE_BLOCK_MIN_DELTA_THRESHOLD))) &&
+                (((zt2092_i2c_instance->last_y[sample_counter] >= current_y[sample_counter]) && ((zt2092_i2c_instance->last_y[sample_counter] - current_y[sample_counter]) < CONFIG_ZT2092_NOISE_BLOCK_MIN_DELTA_THRESHOLD)) ||
+                ((zt2092_i2c_instance->last_y[sample_counter] < current_y[sample_counter]) && ((current_y[sample_counter] - zt2092_i2c_instance->last_y[sample_counter]) < CONFIG_ZT2092_NOISE_BLOCK_MIN_DELTA_THRESHOLD)))) {
+                number_of_touches = 0;
+                break;
+            }
         }
     }
-    memset(buffer, 0x0, 12);
-    zt2092_i2c_read(ZT2092_I2C_REG_DATA, buffer, 12);
 
-    x = (((s16) buffer[0]) << 4 | ((s16) buffer[1]) >> 4);
-    y = (((s16) buffer[2]) << 4 | ((s16) buffer[3]) >> 4);
-    z1 = (((s16) buffer[4]) << 4 | ((s16) buffer[5]) >> 4);
-    z2 = (((s16) buffer[6]) << 4 | ((s16) buffer[7]) >> 4);
-    x2_ref = (((s16) buffer[8]) << 4 | ((s16) buffer[9]) >> 4);
-    y2_ref = (((s16) buffer[10]) << 4 | ((s16) buffer[11]) >> 4);
-
-    if ((z1 > 0) && (z2 > z1)) {
-        /* Rx*x/4096*(z2/z1 - 1), assume Rx=1024 */
-        pressure = ((x)*(z2-z1)/z1) >> 2;
-    } else {
-        pressure = 0x7FFF;
+    if (number_of_touches > 0) {
+        for (sample_counter = 0; sample_counter < number_of_touches; sample_counter++) {
+            input_report_abs(zt2092_i2c_instance->input_dev, ABS_MT_POSITION_X, current_x[sample_counter]);
+            zt2092_i2c_instance->last_x[sample_counter] = current_x[sample_counter];
+            input_report_abs(zt2092_i2c_instance->input_dev, ABS_MT_POSITION_Y, current_y[sample_counter]);
+            zt2092_i2c_instance->last_y[sample_counter] = current_y[sample_counter];
+            input_report_abs(zt2092_i2c_instance->input_dev, ABS_MT_PRESSURE, current_pressure[sample_counter]);
+            zt2092_i2c_instance->last_pressure[sample_counter] = current_pressure[sample_counter];
+            input_mt_sync(zt2092_i2c_instance->input_dev);
+        }
+        if (zt2092_i2c_instance->last_touch != 1) {
+            input_report_key(zt2092_i2c_instance->input_dev, BTN_TOUCH, 1);
+            zt2092_i2c_instance->last_touch = 1;
+        }
+        input_sync(zt2092_i2c_instance->input_dev);
     }
-    
-    //~ printk("%s: x = %d, y = %d, z1 = %d, z2 = %d, x2_ref = %d, y2_ref = %d, pressure = %d\n", __func__, x, y, z1, z2, x2_ref, y2_ref, pressure);
-    
-    //~ const int CONFIG_ZT2092_MIN_X = 60;
-    //~ const int CONFIG_ZT2092_MAX_X = 3950;
-    //~ const int CONFIG_ZT2092_MIN_Y = 160;
-    //~ const int CONFIG_ZT2092_MAX_Y = 3850;
-    const int min_pressure = 100;
-    const int max_pressure = 3500;
-    const int invalid_threshold = 5000;
-    
-    if (pressure > invalid_threshold) { return; }
-    
-#ifndef CONFIG_ZT2092_FLIP_X
-    int current_x = x;
-#else
-    int current_x = CONFIG_ZT2092_MAX_X - x + CONFIG_ZT2092_MIN_X;
-#endif
-    //~ if (current_x < CONFIG_ZT2092_MIN_X) { current_x = CONFIG_ZT2092_MIN_X; }
-    //~ if (current_x > CONFIG_ZT2092_MAX_X) { current_x = CONFIG_ZT2092_MAX_X; }
-    //~ current_x = (CONFIG_ZT2092_MAX_X - current_x) * SCREEN_CONFIG_ZT2092_MAX_X / (CONFIG_ZT2092_MAX_Y - CONFIG_ZT2092_MIN_X);
-    //~ if (current_x > SCREEN_CONFIG_ZT2092_MAX_X) { current_x = SCREEN_CONFIG_ZT2092_MAX_X; }
-
-#ifndef CONFIG_ZT2092_FLIP_Y
-    int current_y = y;
-#else
-    int current_y = CONFIG_ZT2092_MAX_Y - y + CONFIG_ZT2092_MIN_Y;
-#endif
-    //~ if (current_y < CONFIG_ZT2092_MIN_Y) { current_y = CONFIG_ZT2092_MIN_Y; }
-    //~ if (current_y > CONFIG_ZT2092_MAX_Y) { current_y = CONFIG_ZT2092_MAX_Y; }
-    //~ current_y = (CONFIG_ZT2092_MAX_Y - current_y) * SCREEN_CONFIG_ZT2092_MAX_Y / (CONFIG_ZT2092_MAX_Y - CONFIG_ZT2092_MIN_Y);
-    //~ if (current_y > SCREEN_CONFIG_ZT2092_MAX_Y) { current_y = SCREEN_CONFIG_ZT2092_MAX_Y; }
-    
-    int current_pressure = pressure;
-    //~ if (current_pressure < min_pressure) { current_pressure = min_pressure; }
-    //~ if (current_pressure > max_pressure) { current_pressure = max_pressure; }
-    //~ current_pressure = (max_pressure - current_pressure) * SCREEN_MAX_Z / (max_pressure - min_pressure);
-    //~ if (current_pressure > SCREEN_MAX_Z) { current_pressure = SCREEN_MAX_Z; }
-
-    //~ printk("%s: current_x = %d, current_y = %d, current_pressure = %d\n", __func__, current_x, current_y, current_pressure);
 
     if (zt2092_i2c_is_pressed()) {
-        input_report_abs(zt2092_i2c_instance->input_dev, ABS_X, current_x);
-        input_report_abs(zt2092_i2c_instance->input_dev, ABS_Y, current_y);
-        //~ input_report_abs(zt2092_i2c_instance->input_dev, ABS_PRESSURE, current_pressure);
-        input_report_key(zt2092_i2c_instance->input_dev, BTN_TOUCH, 1);
-        input_sync(zt2092_i2c_instance->input_dev);
         queue_delayed_work(zt2092_i2c_instance->workqueue,
-            &zt2092_i2c_instance->delayed_work, 1);
+            &zt2092_i2c_instance->delayed_work, msecs_to_jiffies(10));
     } else {
-        //~ input_report_abs(zt2092_i2c_instance->input_dev, ABS_PRESSURE, 0);
-        input_report_key(zt2092_i2c_instance->input_dev, BTN_TOUCH, 0);
+        input_mt_sync(zt2092_i2c_instance->input_dev);
+        if (zt2092_i2c_instance->last_touch != 0) {
+            input_report_key(zt2092_i2c_instance->input_dev, BTN_TOUCH, 0);
+            zt2092_i2c_instance->last_touch = 0;
+        }
         input_sync(zt2092_i2c_instance->input_dev);
+        enable_irq(zt2092_i2c_instance->i2c_client->irq);
     }
 }
 
 static void zt2092_i2c_work(struct work_struct *work)
 {
-    //~ printk("%s: called\n", __func__);
-    if (zt2092_i2c_instance->pending_interrupt) {
-        zt2092_i2c_instance->pending_interrupt = 0;
-        //enable_irq(zt2092_i2c_instance->i2c_client->irq);
-    }
     if (zt2092_i2c_is_pressed()) {
         queue_delayed_work(zt2092_i2c_instance->workqueue,
             &zt2092_i2c_instance->delayed_work, 0);
-        irq_set_irq_type(zt2092_i2c_instance->i2c_client->irq,
-            IRQ_TYPE_EDGE_RISING);
     } else {
         cancel_delayed_work_sync(&zt2092_i2c_instance->delayed_work);
-        input_report_abs(zt2092_i2c_instance->input_dev, ABS_PRESSURE, 0);
-        input_report_key(zt2092_i2c_instance->input_dev, BTN_TOUCH, 0);
+        input_mt_sync(zt2092_i2c_instance->input_dev);
+        if (zt2092_i2c_instance->last_touch != 0) {
+            input_report_key(zt2092_i2c_instance->input_dev, BTN_TOUCH, 0);
+            zt2092_i2c_instance->last_touch = 0;
+        }
         input_sync(zt2092_i2c_instance->input_dev);
-        //~ zt2092_ts_release();
-        //~ //printk("xylimits: %d %d\n", x_limits, y_limits);
-        //~ counter = 0;
-//~ 
-//~ #if defined(CONFIG_ZT2092_GESTURE)
-        //~ zt2092_get_gesture();
-        //~ data_struct_flush();
-//~ #endif
-//~ 
-        //~ /*
-         //~ * calculate xylimits, interrupt pin may change its state,
-         //~ * therefore interrupt needs to be disabled
-         //~ */
-        //~ disable_irq(this_client->irq); /* __gpio_mask_irq(pdata->intr); */
-        //~ zt2092_startup();
-        //~ Filter_Coord_Struct_Flush();
-        //~ Temp_Buffer_Struct_Flush();
-        irq_set_irq_type(zt2092_i2c_instance->i2c_client->irq,
-            IRQ_TYPE_EDGE_FALLING);
-        //~ enable_irq(this_client->irq); /* __gpio_unmask_irq(pdata->intr); */
-    }    
+        enable_irq(zt2092_i2c_instance->i2c_client->irq);
+    }
 }
 
 static irqreturn_t zt2092_i2c_interrupt_handler(int irq, void *dev_id)
 {
-    //~ printk("%s: called\n", __func__);
-    //disable_irq(zt2092_i2c_instance->i2c_client->irq);
     if (!work_pending(&zt2092_i2c_instance->work)) {
-        zt2092_i2c_instance->pending_interrupt = 1;
+        disable_irq_nosync(zt2092_i2c_instance->i2c_client->irq);
         queue_work(zt2092_i2c_instance->workqueue, &zt2092_i2c_instance->work);
     }
     return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void zt2092_i2c_early_suspend(struct early_suspend *handler)
+{
+    if (cancel_work_sync(&zt2092_i2c_instance->work) || cancel_delayed_work_sync(&zt2092_i2c_instance->delayed_work)) {
+        enable_irq(zt2092_i2c_instance->i2c_client->irq);
+    }
+    zt2092_i2c_write(ZT2092_I2C_REG_SETUP, ZT2092_I2C_MODE_SLEEP2);
+}
+
+static void zt2092_i2c_late_resume(struct early_suspend *handler)
+{
+    zt2092_i2c_write(ZT2092_I2C_REG_SETUP, ZT2092_I2C_MODE_NORMAL);
+}
+#endif
 
 static int zt2092_i2c_probe(struct i2c_client *client,
     const struct i2c_device_id *id)
@@ -398,33 +493,21 @@ static int zt2092_i2c_probe(struct i2c_client *client,
         return -ENOMEM;
     }
 
-#ifdef CONFIG_ZT2092_MULTITOUCH
-    //~ set_bit(ABS_MT_POSITION_X, zt2092_i2c_instance->input_dev->absbit);
-    //~ input_set_abs_params(zt2092_i2c_instance->input_dev,
-        //~ ABS_MT_POSITION_X, 0, SCREEN_CONFIG_ZT2092_MAX_X + 1, 0, 0);
-    //~ set_bit(ABS_MT_POSITION_Y, zt2092_i2c_instance->input_dev->absbit);
-    //~ input_set_abs_params(zt2092_i2c_instance->input_dev,
-        //~ ABS_MT_POSITION_Y, 0, SCREEN_CONFIG_ZT2092_MAX_Y + 1, 0, 0);
-    //~ set_bit(ABS_MT_TOUCH_MAJOR, zt2092_i2c_instance->input_dev->absbit);
-    //~ input_set_abs_params(zt2092_i2c_instance->input_dev,
-        //~ ABS_MT_TOUCH_MAJOR, 0, SCREEN_MAX_Z + 1, 0, 0);
-    //~ set_bit(ABS_MT_WIDTH_MAJOR, zt2092_i2c_instance->input_dev->absbit);
-    //~ input_set_abs_params(zt2092_i2c_instance->input_dev,
-        //~ ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
-#else
-    set_bit(ABS_X, zt2092_i2c_instance->input_dev->absbit);
-    input_set_abs_params(zt2092_i2c_instance->input_dev,
-        ABS_X, CONFIG_ZT2092_MIN_X, CONFIG_ZT2092_MAX_X, 0, 0);
-    set_bit(ABS_Y, zt2092_i2c_instance->input_dev->absbit);
-    input_set_abs_params(zt2092_i2c_instance->input_dev,
-        ABS_Y, CONFIG_ZT2092_MIN_Y, CONFIG_ZT2092_MAX_Y, 0, 0);
-    //~ set_bit(ABS_PRESSURE, zt2092_i2c_instance->input_dev->absbit);
-    //~ input_set_abs_params(zt2092_i2c_instance->input_dev,
-        //~ ABS_PRESSURE, 0, SCREEN_MAX_Z + 1, 0, 0);
-    set_bit(BTN_TOUCH, zt2092_i2c_instance->input_dev->keybit);
-#endif
     set_bit(EV_ABS, zt2092_i2c_instance->input_dev->evbit);
+    set_bit(ABS_MT_POSITION_X, zt2092_i2c_instance->input_dev->absbit);
+    set_bit(ABS_MT_POSITION_Y, zt2092_i2c_instance->input_dev->absbit);
+    set_bit(ABS_MT_PRESSURE, zt2092_i2c_instance->input_dev->absbit);
     set_bit(EV_KEY, zt2092_i2c_instance->input_dev->evbit);
+    set_bit(BTN_TOUCH, zt2092_i2c_instance->input_dev->keybit);
+    set_bit(EV_SYN, zt2092_i2c_instance->input_dev->evbit);
+
+    input_set_abs_params(zt2092_i2c_instance->input_dev, ABS_MT_POSITION_X,
+        CONFIG_ZT2092_MIN_X, CONFIG_ZT2092_MAX_X, 0, 0);
+    input_set_abs_params(zt2092_i2c_instance->input_dev, ABS_MT_POSITION_Y,
+        CONFIG_ZT2092_MIN_Y, CONFIG_ZT2092_MAX_Y, 0, 0);
+    input_set_abs_params(zt2092_i2c_instance->input_dev, ABS_MT_PRESSURE,
+        CONFIG_ZT2092_MIN_PRESSURE, CONFIG_ZT2092_MAX_PRESSURE, 0, 0);
+
     zt2092_i2c_instance->input_dev->name = ZT2092_I2C_NAME;
     zt2092_i2c_instance->input_dev->id.bustype = BUS_I2C;
 
@@ -454,20 +537,8 @@ static int zt2092_i2c_probe(struct i2c_client *client,
 
 static int __devexit zt2092_i2c_remove(struct i2c_client *client)
 {
-    //~ printk("%s: called\n", __func__);
-    return 0; // Do you really want to remove touchscreen driver?! :-)
-}
-
-static int zt2092_i2c_resume(struct i2c_client *client)
-{
-    //~ printk("%s: called\n", __func__);
-    return 0;
-}
-
-static int zt2092_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-    //~ printk("%s: called\n", __func__);
-    return 0;
+    printk("%s: called\n", __func__);
+    return 0; // TODO: Do you really want to remove touchscreen driver?! :-)
 }
 
 /*
@@ -486,26 +557,22 @@ static struct i2c_driver zt2092_i2c_driver = {
     .id_table = zt2092_i2c_id_table,
     .probe  = zt2092_i2c_probe,
     .remove = __devexit_p(zt2092_i2c_remove),
-    .resume = zt2092_i2c_resume,
-    .suspend = zt2092_i2c_suspend,
 };
 
 static int __init zt2092_i2c_init(void)
 {
-    //~ printk("%s: called\n", __func__);
     return i2c_add_driver(&zt2092_i2c_driver);
 }
 
 static void __exit zt2092_i2c_exit(void)
 {
-    //~ printk("%s: called\n", __func__);
     i2c_del_driver(&zt2092_i2c_driver);
 }
 
 module_init(zt2092_i2c_init);
 module_exit(zt2092_i2c_exit);
 
-MODULE_AUTHOR("LifeDJIK");
+MODULE_AUTHOR("");
 MODULE_DESCRIPTION("ZT2092 I2C touchscreen driver");
 MODULE_DEVICE_TABLE(i2c, zt2092_i2c_id);
 MODULE_LICENSE("GPL");

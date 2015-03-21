@@ -1026,41 +1026,6 @@ config TOUCHSCREEN_ZT2092
           To compile this driver as a module, choose M here: the
           module will be called zt2092_i2c.
 
-        config ZT2092_MULTITOUCH
-                bool "ZT2092 multitouch support"
-                depends on TOUCHSCREEN_ZT2092
-                default y
-                help
-                  ZT2092 multitouch support
-
-        config ZT2092_MIN_X
-                int "ZT2092 min X"
-                depends on TOUCHSCREEN_ZT2092
-                default 50
-                help
-                  ZT2092 min X
-
-        config ZT2092_MIN_Y
-                int "ZT2092 min Y"
-                depends on TOUCHSCREEN_ZT2092
-                default 150
-                help
-                  ZT2092 min Y
-
-        config ZT2092_MAX_X
-                int "ZT2092 max X"
-                depends on TOUCHSCREEN_ZT2092
-                default 3950
-                help
-                  ZT2092 max X
-
-        config ZT2092_MAX_Y
-                int "ZT2092 max Y"
-                depends on TOUCHSCREEN_ZT2092
-                default 3850
-                help
-                  ZT2092 max Y
-
         config ZT2092_FLIP_X
                 bool "ZT2092 flip X"
                 depends on TOUCHSCREEN_ZT2092
@@ -1074,5 +1039,96 @@ config TOUCHSCREEN_ZT2092
                 default y
                 help
                   ZT2092 flip Y
+
+        config ZT2092_FLIP_PRESSURE
+                bool "ZT2092 flip PRESSURE"
+                depends on TOUCHSCREEN_ZT2092
+                default y
+                help
+                  ZT2092 flip PRESSURE
+
+        config ZT2092_NOISE_FILTER_SAMPLE_COUNT
+                int "ZT2092 noise filter sample count"
+                depends on TOUCHSCREEN_ZT2092
+                default 5
+                help
+                  ZT2092 noise filter sample count
+
+        config ZT2092_NOISE_BLOCK_LIMIT_THRESHOLD
+                int "ZT2092 noise block limit threshold"
+                depends on TOUCHSCREEN_ZT2092
+                default 0
+                help
+                  ZT2092 noise block limit threshold
+
+        config ZT2092_NOISE_BLOCK_MIN_DELTA_THRESHOLD
+                int "ZT2092 noise block minimum delta threshold"
+                depends on TOUCHSCREEN_ZT2092
+                default 5
+                help
+                  ZT2092 noise block minimum delta threshold
+
+        config ZT2092_MIN_X
+                int "ZT2092 min X"
+                depends on TOUCHSCREEN_ZT2092
+                default 50
+                help
+                  ZT2092 min X
+
+        config ZT2092_MAX_X
+                int "ZT2092 max X"
+                depends on TOUCHSCREEN_ZT2092
+                default 3950
+                help
+                  ZT2092 max X
+
+        config ZT2092_MIN_Y
+                int "ZT2092 min Y"
+                depends on TOUCHSCREEN_ZT2092
+                default 150
+                help
+                  ZT2092 min Y
+
+        config ZT2092_MAX_Y
+                int "ZT2092 max Y"
+                depends on TOUCHSCREEN_ZT2092
+                default 3850
+                help
+                  ZT2092 max Y
+
+        config ZT2092_MIN_PRESSURE
+                int "ZT2092 min PRESSURE"
+                depends on TOUCHSCREEN_ZT2092
+                default 0
+                help
+                  ZT2092 min PRESSURE
+
+        config ZT2092_MAX_PRESSURE
+                int "ZT2092 max PRESSURE"
+                depends on TOUCHSCREEN_ZT2092
+                default 100
+                help
+                  ZT2092 max PRESSURE
+
+        config ZT2092_MIN_RAW_PRESSURE
+                int "ZT2092 min RAW PRESSURE"
+                depends on TOUCHSCREEN_ZT2092
+                default 500
+                help
+                  ZT2092 min RAW PRESSURE
+
+        config ZT2092_MAX_RAW_PRESSURE
+                int "ZT2092 max RAW PRESSURE"
+                depends on TOUCHSCREEN_ZT2092
+                default 2200
+                help
+                  ZT2092 max RAW PRESSURE
+
+        config ZT2092_MULTITOUCH_THRESHOLD
+                int "ZT2092 multitouch threshold"
+                depends on TOUCHSCREEN_ZT2092
+                default 10
+                help
+                  ZT2092 multitouch threshold
 
 endif
