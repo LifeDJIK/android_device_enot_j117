@@ -258,9 +258,8 @@ static int mma7660_get_data(struct i2c_client *client)
     } while ((buffer[0] & 0x40) || (buffer[1] & 0x40) || (buffer[2] & 0x40));
 
 	axis.x = -mma7660_convert_to_int(buffer[MMA7660_REG_X_OUT]);
-	axis.y = mma7660_convert_to_int(buffer[MMA7660_REG_Y_OUT]);
-	axis.z = -mma7660_convert_to_int(buffer[MMA7660_REG_Z_OUT]);
-	swap(axis.x, axis.y);
+	axis.y = -mma7660_convert_to_int(buffer[MMA7660_REG_Y_OUT]);
+	axis.z = mma7660_convert_to_int(buffer[MMA7660_REG_Z_OUT]);
 /*
 	if(pdata->swap_xy)
 	{
