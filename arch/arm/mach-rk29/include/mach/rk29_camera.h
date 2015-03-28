@@ -99,6 +99,7 @@
 #define mt9t111_FULL_RESOLUTION    0x300000           // 3 megapixel
 #define mt9p111_FULL_RESOLUTION    0x500000           // 5 megapixel
 #define gt2005_FULL_RESOLUTION     0x200000           // 2 megapixel
+#define gc0307_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define gc0308_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define gc0309_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define gc2015_FULL_RESOLUTION     0x200000           // 2 megapixel

@@ -163,8 +163,6 @@
 #endif
 
 #ifdef CONFIG_SOC_CAMERA_GC0307
-#define gc0307_FULL_RESOLUTION              0x500000
-
 #define CONFIG_SENSOR_0                     RK29_CAM_SENSOR_GC0307
 #define CONFIG_SENSOR_IIC_ADDR_0            0x42
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0      1
