@@ -282,7 +282,7 @@ struct rk29_nand_platform_data rk29_nand_data = {
     .io_init   = rk29_nand_io_init,
 };
 
-#define TOUCH_SCREEN_STANDBY_PIN          RK29_PIN6_PD1
+#define TOUCH_SCREEN_STANDBY_PIN          RK29_PIN6_PD1 // INVALID_GPIO
 #define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
 #define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
 #define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
@@ -301,12 +301,12 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           INVALID_GPIO// RK29_PIN6_PD0
-#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
+#define FB_DISPLAY_ON_PIN           INVALID_GPIO// RK29_PIN6_PD0 // RK29_PIN6_PD1
+#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1 // INVALID_GPIO
 #define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
-#define FB_DISPLAY_ON_VALUE         GPIO_HIGH
+#define FB_DISPLAY_ON_VALUE         GPIO_HIGH // GPIO_LOW
 #define FB_LCD_STANDBY_VALUE        GPIO_HIGH
 
 static int rk29_lcd_io_init(void)
@@ -1785,6 +1785,15 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       //.udelay		  = 100
     },
 #endif
+#if defined (CONFIG_ZINITIX_TOUCH)
+    {
+      .type           = "p1003_touch",
+      .addr           = 0x20,//0x04,
+      .flags          = 0, //I2C_M_NEED_DELAY
+      .irq            = RK29_PIN0_PA2,
+      
+    },
+#endif
 #if defined (CONFIG_EETI_EGALAX)
     {
       .type           = "egalax_i2c",
@@ -2506,7 +2515,7 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
           return -1;
     }
 
-    gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+    gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH); // GPIO_LOW
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
     gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
@@ -2535,7 +2544,7 @@ static int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
         if (on){
-                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
+                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW); // GPIO_HIGH
 
                 #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
                 rk29_sdmmc_gpio_open(1, 1); //added by xbw at 2011-10-13
@@ -2546,7 +2555,7 @@ static int rk29sdk_wifi_power(int on)
                 pr_info("wifi turn on power\n");
         }else{
                 if (!rk29sdk_bt_power_state){
-                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH); // GPIO_LOW
 
                         #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
                         rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
