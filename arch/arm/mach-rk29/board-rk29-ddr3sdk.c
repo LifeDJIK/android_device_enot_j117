@@ -217,8 +217,8 @@
 #define SDRAM_SIZE          SZ_512M
 #endif
 #define PMEM_GPU_SIZE       SZ_32M //SZ_64M
-#define PMEM_UI_SIZE        SZ_32M /* 1280x800: 64M 1024x768: 48M ... */
-#define PMEM_VPU_SIZE       SZ_64M
+#define PMEM_UI_SIZE        SZ_64M /* 1280x800: 64M 1024x768: 48M ... */
+#define PMEM_VPU_SIZE       0 //SZ_64M
 #define PMEM_SKYPE_SIZE     SZ_8M
 #define PMEM_CAM_SIZE       PMEM_CAM_NECESSARY
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
