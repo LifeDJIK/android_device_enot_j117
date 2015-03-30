@@ -1341,8 +1341,10 @@ int vpu_mem_setup(struct vpu_mem_platform_data *pdata)
     else
         vpu_mem.vbase = ioremap(vpu_mem.base, vpu_mem.size);
 
-    if (vpu_mem.vbase == 0)
+    if (vpu_mem.vbase == 0) {
+        printk(KERN_ALERT "Failed to remap vpu_mem.vbase!\n");
         goto error_cant_remap;
+    }
 
     #if VPU_MEM_DEBUG
     debugfs_create_file(pdata->name, S_IFREG | S_IRUGO, NULL, (void *)vpu_mem.dev.minor,
