@@ -216,9 +216,9 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_32M //SZ_64M
-#define PMEM_UI_SIZE        SZ_64M /* 1280x800: 64M 1024x768: 48M ... */
-#define PMEM_VPU_SIZE       0 //SZ_64M
+#define PMEM_GPU_SIZE       SZ_48M // Looks like 48M is minimal size (with 32M I get "_AllocateMemory fail" on boot)
+#define PMEM_UI_SIZE        SZ_32M /* 1280x800: 64M 1024x768: 48M ... */ // For 800x480 we need approx. 24M, safe to use 32M
+#define PMEM_VPU_SIZE       SZ_32M // Looks like 32M is minimal size (with 16M I get out-of-memory with 20Mbps file)
 #define PMEM_SKYPE_SIZE     SZ_8M
 #define PMEM_CAM_SIZE       PMEM_CAM_NECESSARY
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
@@ -2678,8 +2678,7 @@ static struct platform_device rk29sdk_rfkill = {
         .id = -1,
 };
 
-
-#ifdef CONFIG_VIVANTE
+#if defined(CONFIG_VIVANTE) || defined(CONFIG_VIVANTE_GPU)
 #define GPU_HIGH_CLOCK        552
 #define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
 static struct resource resources_gpu[] = {
@@ -2900,7 +2899,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,
 #endif
-#ifdef CONFIG_VIVANTE
+#if defined(CONFIG_VIVANTE) || defined(CONFIG_VIVANTE_GPU)
 	&rk29_device_gpu,
 #endif
 #ifdef CONFIG_VIDEO_RK29

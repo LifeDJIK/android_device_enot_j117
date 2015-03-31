@@ -1,0 +1,24 @@
+config VIVANTE_GPU
+	tristate "Vivante GPU"
+	depends on ARCH_RK29
+	default n
+
+if VIVANTE_GPU
+menu "Vivante GPU Options"
+
+config VIVANTE_GPU_ANDROID
+	bool
+	default y if ANDROID
+	default n
+
+config VIVANTE_GPU_DEBUG
+	boolean "Enable debug output"
+
+config VIVANTE_GPU_PROFILER
+	boolean "Enable profiler"
+
+config VIVANTE_GPU_NEWSIGNAL
+	boolean "Use new linux signal"
+
+endmenu
+endif

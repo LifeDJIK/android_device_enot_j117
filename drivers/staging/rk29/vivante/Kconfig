@@ -1,3 +1,4 @@
+if ARCH_RK29 && !VIVANTE_GPU
 menu "GPU Vivante"
 config VIVANTE
 	tristate "ROCKCHIP Vivante GPU"
@@ -5,3 +6,4 @@ config VIVANTE
 	help
           Vivante GPU module.
 endmenu
+endif
