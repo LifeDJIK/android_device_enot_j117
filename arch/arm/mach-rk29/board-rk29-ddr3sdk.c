@@ -162,6 +162,7 @@
 
 #endif
 
+// TODO: Maybe need to make camera sensor #1 (front)
 #ifdef CONFIG_SOC_CAMERA_GC0307
 #define CONFIG_SENSOR_0                     RK29_CAM_SENSOR_GC0307
 #define CONFIG_SENSOR_IIC_ADDR_0            0x42
