@@ -218,7 +218,7 @@
 #define SDRAM_SIZE          SZ_512M
 #endif
 #define PMEM_GPU_SIZE       SZ_48M // Looks like 48M is minimal size (with 32M I get "_AllocateMemory fail" on boot)
-#define PMEM_UI_SIZE        SZ_32M /* 1280x800: 64M 1024x768: 48M ... */ // For 800x480 we need approx. 24M, safe to use 32M
+#define PMEM_UI_SIZE        SZ_48M /* 1280x800: 64M 1024x768: 48M ... */ // Looks like 32M is not OK - I get "ion_ioctl: alloc failed"
 #define PMEM_VPU_SIZE       SZ_32M // Looks like 32M is minimal size (with 16M I get out-of-memory with 20Mbps file)
 #define PMEM_SKYPE_SIZE     SZ_8M
 #define PMEM_CAM_SIZE       PMEM_CAM_NECESSARY

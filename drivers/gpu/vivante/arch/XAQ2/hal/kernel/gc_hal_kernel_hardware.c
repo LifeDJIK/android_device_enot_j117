@@ -315,7 +315,7 @@ gckHARDWARE_Construct(
     IN gckOS Os,
     OUT gckHARDWARE * Hardware
     )
-{
+{ // TODO: powermanagement? auto power off?
     gckHARDWARE hardware = gcvNULL;
     gceSTATUS status;
     gceCHIPMODEL chipModel;
@@ -2844,7 +2844,7 @@ gckHARDWARE_SetPowerManagementState(
     IN gckHARDWARE Hardware,
     IN gceCHIPPOWERSTATE State
     )
-{
+{ // TODO: add platform power management and frequency scalling
 #if !gcdNO_POWER_MANAGEMENT
     gceSTATUS status;
     gckCOMMAND command = gcvNULL;

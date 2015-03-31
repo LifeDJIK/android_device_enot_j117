@@ -41,7 +41,7 @@ _DumpCommand(
     IN gctPOINTER Pointer,
     IN gctSIZE_T Bytes
     )
-{
+{ // Looks like we have no gcdDUMP_COMMAND (TODO: check)
     gctUINT32_PTR data = (gctUINT32_PTR) Pointer;
     gctUINT32 address;
 
@@ -106,7 +106,7 @@ _WaitSignalFromGPU(
     gceSTATUS status;
 
 #if gcdGPU_TIMEOUT
-    gctUINT timer = 0;
+    gctUINT timer = 0; // Looks like we have no gcdGPU_TIMEOUT (TODO: check)
 
     do
     {
@@ -742,7 +742,7 @@ gckCOMMAND_Commit(
     IN gcoCONTEXT Context,
     IN gctHANDLE Process
     )
-{
+{ // TODO: add frequency management
     gcoCMDBUF commandBuffer;
     gcoCONTEXT context;
     gckHARDWARE hardware = gcvNULL;

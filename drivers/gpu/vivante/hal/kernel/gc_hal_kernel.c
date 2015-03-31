@@ -863,7 +863,7 @@ gckKERNEL_Dispatch(
         gcmkONERROR(
             gckOS_ReadRegister(Kernel->os,
                                Interface->u.ReadRegisterData.address,
-                               &Interface->u.ReadRegisterData.data));
+                               &Interface->u.ReadRegisterData.data)); // Looks like our platform has gcdREGISTER_ACCESS_FROM_USER (TODO: check)
 #else
         /* No access from user land to read registers. */
         Interface->u.ReadRegisterData.data = 0;
@@ -877,7 +877,7 @@ gckKERNEL_Dispatch(
         gcmkONERROR(
             gckOS_WriteRegister(Kernel->os,
                                 Interface->u.WriteRegisterData.address,
-                                Interface->u.WriteRegisterData.data));
+                                Interface->u.WriteRegisterData.data)); // Looks like our platform has gcdREGISTER_ACCESS_FROM_USER (TODO: check)
 #else
         /* No access from user land to write registers. */
         status = gcvSTATUS_NOT_SUPPORTED;
@@ -990,7 +990,7 @@ gckKERNEL_Dispatch(
         /* Broadcast GPU stuck */
         status = gckOS_Broadcast(Kernel->os,
                                  Kernel->hardware,
-                                 gcvBROADCAST_GPU_STUCK);
+                                 gcvBROADCAST_GPU_STUCK); // Looks like our platform has no gcdGPU_TIMEOUT (TODO: check)
         break;
 #endif
 
@@ -1231,7 +1231,7 @@ gckKERNEL_Recovery(
 
 #if gcdSECURE_USER
     /* Flush the secure mapping cache. */
-    gcmkONERROR(gckOS_GetProcessID(&processID));
+    gcmkONERROR(gckOS_GetProcessID(&processID)); // Looks like we have no gcdSECURE_USER (TODO: check)
     gcmkONERROR(gckKERNEL_MapLogicalToPhysical(Kernel, processID, gcvNULL));
 #endif
 
