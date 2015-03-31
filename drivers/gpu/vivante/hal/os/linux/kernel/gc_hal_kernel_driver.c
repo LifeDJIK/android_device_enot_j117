@@ -317,6 +317,7 @@ drv_ioctl(struct file *filp, unsigned int ioctlCode, unsigned long arg)
         return -ENOTTY;
     }
 
+// <-- looks like this is valid for our platform (TODO: check)
 #if gcdkUSE_MEMORY_RECORD
     if (iface.command == gcvHAL_EVENT_COMMIT)
     {
@@ -917,6 +918,8 @@ gpu_probe_fail:
     return ret;
 }
 
+// Hmm, no gpu_proc_init? (TODO: check)
+
 static int __devinit gpu_remove(struct platform_device *pdev)
 {
     printk("%s: -----> ENTERED <-----\n", __func__);
@@ -944,7 +947,7 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 #ifdef CONFIG_JZSOC
     cpm_stop_clock(CGM_GPU);
 #else
-    clk_disable(galDevice->clk);
+    clk_disable(galDevice->clk); // Not used on our platform? (TODO: check)
 #endif
 
     return 0;
@@ -962,7 +965,7 @@ static int __devinit gpu_resume(struct platform_device *dev)
 #ifdef CONFIG_JZSOC
     cpm_start_clock(CGM_GPU);
 #else
-    clk_enable(galDevice->clk);
+    clk_enable(galDevice->clk); // Not used on our platform? (TODO: check)
 #endif
 
     status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_ON);
@@ -1012,6 +1015,8 @@ static void __exit gpu_exit(void)
     printk("%s: -----> ENTERED <-----\n", __func__);
     platform_driver_unregister(&gpu_driver);
 }
+
+// TODO: check all, implement, ...
 
 module_init(gpu_init);
 module_exit(gpu_exit);

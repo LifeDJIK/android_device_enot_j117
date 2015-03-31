@@ -370,7 +370,7 @@ gckKERNEL_Notify(
 #if COMMAND_PROCESSOR_VERSION > 1
         status = gckINTERRUPT_Notify(Kernel->interrupt, Data);
 #else
-        status = gckHARDWARE_Interrupt(Kernel->hardware, Data);
+        status = gckHARDWARE_Interrupt(Kernel->hardware, Data); // <-- looks like this is valid for our platform (TODO: check)
 #endif
         break;
 

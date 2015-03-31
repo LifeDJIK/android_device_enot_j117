@@ -537,7 +537,7 @@ gckGALDEVICE_Construct(
 
 #if COMMAND_PROCESSOR_VERSION == 1
     /* start the command queue */
-    gcmkVERIFY_OK(gckCOMMAND_Start(device->kernel->command));
+    gcmkVERIFY_OK(gckCOMMAND_Start(device->kernel->command)); // <-- looks like this is valid for our platform (TODO: check)
 #endif
 
     /* initialize the thread daemon */
