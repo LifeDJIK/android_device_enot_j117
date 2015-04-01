@@ -12,10 +12,12 @@ endif
 
 ifeq ($(CONFIG_VIVANTE_GPU_DEBUG),y)
 EXTRA_CFLAGS += \
-	-DDBG=1
+	-DDBG=1 \
+	-DgcdDEBUG=1
 else
 EXTRA_CFLAGS += \
-	-DDBG=0
+	-DDBG=0 \
+	-DgcdDEBUG=0
 endif
 
 ifeq ($(CONFIG_VIVANTE_GPU_PROFILER),y)
@@ -38,7 +40,7 @@ endif
 # Do a kernel flush_cache_all instead of user flush_cache_range
 #
 EXTRA_CFLAGS += \
-	-DFLUSH_CACHE_ALL_IN_KERNEL=1
+	-DFLUSH_CACHE_ALL_IN_KERNEL=0
 
 #
 # Make mmap() be cacheable and implement gckOS_CacheFlush()
@@ -50,7 +52,6 @@ EXTRA_CFLAGS += \
 	-DLINUX \
 	-DDRIVER \
 	-DENUM_WORKAROUND=0 \
-	-DNO_DMA_COHERENT \
 	-DENABLE_ARM_L2_CACHE=0 \
 	-DgcdNO_POWER_MANAGEMENT=0 \
 	-DUSE_PLATFORM_DRIVER=1 \
@@ -65,7 +66,8 @@ EXTRA_CFLAGS += \
 	-DgcdENABLE_BANK_ALIGNMENT=0 \
 	-Wframe-larger-than=1032 \
 	-Werror \
-	-DgcdNULL_DRIVER_TEST=0
+	-DgcdNULL_DRIVER_TEST=0 \
+	-DgcdkUSE_MEMORY_RECORD=1
 
 obj-$(CONFIG_VIVANTE_GPU) += galcore.o
 

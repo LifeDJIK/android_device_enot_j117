@@ -39,8 +39,10 @@
 \******************************************************************************/
 
 static gceSTATUS  _lastError  = gcvSTATUS_OK;
-static gctUINT32  _debugLevel = gcvLEVEL_ERROR;
-static gctUINT32  _debugZones = gcvZONE_NONE;
+//~ static gctUINT32  _debugLevel = gcvLEVEL_ERROR;
+static gctUINT32  _debugLevel = gcvLEVEL_VERBOSE;
+//~ static gctUINT32  _debugZones = gcvZONE_NONE;
+static gctUINT32  _debugZones = gcvZONE_ALL;
 static gctINT     _indent     = 0;
 static spinlock_t _lock       = __SPIN_LOCK_UNLOCKED();
 

@@ -92,7 +92,11 @@ ulong contiguousBase = 0;
 module_param(contiguousBase, ulong, 0644);
 #endif  /* CONFIG_MACH_JZ4770 */
 
+#ifdef CONFIG_ARCH_RK29
+long bankSize = 16 << 20;
+#else
 long bankSize = 32 << 20;
+#endif
 module_param(bankSize, long, 0644);
 
 int fastClear = -1;
@@ -111,12 +115,20 @@ int showArgs = 1;
 module_param(showArgs, int, 0644);
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER
-unsigned long coreClock = 552000000;
+unsigned long coreClock = 156000000;
 module_param(coreClock, ulong, 0644);
 #endif
 
-unsigned long lowFrequency = 0;
-unsigned long highFrequency = 552000000;
+#ifdef CONFIG_ARCH_RK29
+unsigned long coreClock = 552000000;
+module_param(coreClock, ulong, 0644);
+
+unsigned long lowFrequency = 300;
+module_param(lowFrequency, ulong, 0644);
+
+unsigned long highFrequency = 552;
+module_param(highFrequency, ulong, 0644);
+#endif
 
 static int drv_open(struct inode *inode, struct file *filp);
 static int drv_release(struct inode *inode, struct file *filp);
@@ -317,7 +329,6 @@ drv_ioctl(struct file *filp, unsigned int ioctlCode, unsigned long arg)
         return -ENOTTY;
     }
 
-// <-- looks like this is valid for our platform (TODO: check)
 #if gcdkUSE_MEMORY_RECORD
     if (iface.command == gcvHAL_EVENT_COMMIT)
     {
@@ -670,6 +681,11 @@ static int drv_init(void)
     int ret;
     gckGALDEVICE device;
 
+#ifdef CONFIG_ARCH_RK29
+    struct clk *aclk_gpu;
+    struct clk *gpu;
+#endif
+
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
                   "Entering drv_init\n");
 
@@ -677,10 +693,29 @@ static int drv_init(void)
     enable_jzsoc_gpu_clock();
 #endif
 
+#ifdef CONFIG_ARCH_RK29
+    aclk_gpu = clk_get(NULL, "aclk_gpu");
+    if (IS_ERR(aclk_gpu)) {
+        printk("aclk_gpu clk_get error: %ld\n", PTR_ERR(aclk_gpu));
+        return -ENODEV;
+    }
+    if (clk_set_rate(aclk_gpu, 312000000)) {
+        printk("aclk_gpu clk_set_rate error\n");
+        return -ENODEV;
+    }
+    gpu = clk_get(NULL, "gpu");
+    if (IS_ERR(gpu)) {
+        printk("gpu clk_get error: %ld\n", PTR_ERR(gpu));
+        return -ENODEV;
+    }
+    if (clk_set_rate(gpu, coreClock)) {
+        printk("gpu clk_set_rate error\n");
+        return -ENODEV;
+    }
+#endif
+
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    struct clk *clk;
-    //~ clk = clk_get(NULL, "GCCLK");
-    clk = clk_get(NULL, "gpu");
+    struct clk * clk = clk_get(NULL, "GCCLK");
     if (IS_ERR(clk)) 
     {
         int retval = PTR_ERR(clk);
@@ -688,7 +723,11 @@ static int drv_init(void)
         return -ENODEV;
     }    	    	  
 
-    if (clk_set_rate(clk, coreClock))
+    /* 
+     * APMU_GC_156M, APMU_GC_312M, APMU_GC_PLL2, APMU_GC_PLL2_DIV2 currently.
+     * Use the 2X clock.
+     */
+    if (clk_set_rate(clk, coreClock * 2))
     { 
        	gcmkTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DRIVER,
     	    	      "[galcore] Can't set core clock."); 
@@ -791,12 +830,13 @@ static void __exit drv_exit(void)
 static void drv_exit(void)
 #endif
 {
-    struct clk *clk;
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    clk = NULL;   
+    struct clk * clk = NULL;   
 #endif
 #ifndef CONFIG_JZSOC
-    clk = galDevice->clk;
+#ifndef CONFIG_ARCH_RK29
+    struct clk *clk = galDevice->clk;
+#endif
 #endif
 
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
@@ -811,13 +851,14 @@ static void drv_exit(void)
     gckGALDEVICE_Destroy(galDevice);
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    //~ clk = clk_get(NULL, "GCCLK");
-    clk = clk_get(NULL, "gpu");
+    clk = clk_get(NULL, "GCCLK");
     clk_disable(clk);
 #endif
 #ifndef CONFIG_JZSOC
+#ifndef CONFIG_ARCH_RK29
     clk_disable(clk);
     clk_put(clk);
+#endif
 #endif
 }
 
@@ -832,15 +873,16 @@ module_exit(drv_exit);
 #define DEVICE_NAME "galcore"
 #endif
 
+
 static int __devinit gpu_probe(struct platform_device *pdev)
 {
     int ret = -ENODEV;
     struct resource *res;
 #ifndef CONFIG_JZSOC
+#ifndef CONFIG_ARCH_RK29
     struct clk *clk;
 #endif
-
-    printk("%s: -----> ENTERED <-----\n", __func__);
+#endif
 
     res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,"gpu_irq");
     if (!res) {
@@ -857,7 +899,11 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     registerMemBase = res->start;
     registerMemSize = res->end - res->start + 1;
 
+#ifdef CONFIG_ARCH_RK29
     res = platform_get_resource_byname(pdev, IORESOURCE_MEM,"gpu_mem");
+#else
+    res = platform_get_resource_byname(pdev, IORESOURCE_DMA,"gpu_mem");
+#endif
     if (!res) {
         printk(KERN_ERR "%s: No memory base supplied.\n",__FUNCTION__);
         goto gpu_probe_fail;
@@ -865,53 +911,49 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     contiguousBase  = res->start;
     contiguousSize  = res->end - res->start + 1;
 
+#ifdef CONFIG_ARCH_RK29
     res = platform_get_resource_byname(pdev, IORESOURCE_IO,"gpu_clk");
     if (!res) {
         printk(KERN_ERR "%s: No clock supplied.\n",__FUNCTION__);
         goto gpu_probe_fail;
     }
-    //~ coreClock  = 1000000 * res->end;
+    coreClock  = 1000000 * res->end;
     lowFrequency = res->start;
-    highFrequency = 1000000 * res->end;
+    highFrequency = res->end;
+#endif
 
     dev_info(&pdev->dev, "driver v2.5.3.2.2.p3, initializing\n");
 
 #ifndef CONFIG_JZSOC
-    clk = clk_get(NULL, "gpu");
-    if (IS_ERR(clk)) 
-    {
+#ifndef CONFIG_ARCH_RK29
+    clk = clk_get(&pdev->dev, NULL);
+    if (IS_ERR(clk)) {
         dev_err(&pdev->dev, "cannot get clock\n");
         ret = PTR_ERR(clk);
         goto gpu_probe_fail;
     }
-    //~ if (clk_set_rate(clk, highFrequency))
-    //~ { 
-       	//~ dev_err(&pdev->dev, "cannot set clock\n");
-        //~ ret = PTR_ERR(clk);
-        //~ goto gpu_probe_fail;
-    //~ }
     clk_enable(clk);
+#endif
 #endif
 
     ret = drv_init();
     if(!ret) {
         platform_set_drvdata(pdev,galDevice);
 #ifdef CONFIG_JZSOC
-
         return ret;
-    }
 #else
+#ifndef CONFIG_ARCH_RK29
         galDevice->clk = clk;
 
         dev_info(&pdev->dev, "GPU initialized, clocked at %luMHz\n",
                  clk_get_rate(clk) / 1000000);
 
+        clk_disable(clk);
+        clk_put(clk);
+#endif
+#endif
         return ret;
     }
-
-    clk_disable(clk);
-    clk_put(clk);
-#endif
 
 gpu_probe_fail:
     printk(KERN_INFO "Failed to register gpu driver.\n");
@@ -922,7 +964,6 @@ gpu_probe_fail:
 
 static int __devinit gpu_remove(struct platform_device *pdev)
 {
-    printk("%s: -----> ENTERED <-----\n", __func__);
     drv_exit();
 
     return 0;
@@ -932,8 +973,6 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 {
     gceSTATUS status;
     gckGALDEVICE device;
-
-    printk("%s: -----> ENTERED <-----\n", __func__);
 
     device = platform_get_drvdata(dev);
 
@@ -947,7 +986,9 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 #ifdef CONFIG_JZSOC
     cpm_stop_clock(CGM_GPU);
 #else
-    clk_disable(galDevice->clk); // Not used on our platform? (TODO: check)
+#ifndef CONFIG_ARCH_RK29
+    clk_disable(galDevice->clk);
+#endif
 #endif
 
     return 0;
@@ -958,14 +999,14 @@ static int __devinit gpu_resume(struct platform_device *dev)
     gceSTATUS status;
     gckGALDEVICE device;
 
-    printk("%s: -----> ENTERED <-----\n", __func__);
-
     device = platform_get_drvdata(dev);
 
 #ifdef CONFIG_JZSOC
     cpm_start_clock(CGM_GPU);
 #else
-    clk_enable(galDevice->clk); // Not used on our platform? (TODO: check)
+#ifndef CONFIG_ARCH_RK29
+    clk_enable(galDevice->clk);
+#endif
 #endif
 
     status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_ON);
@@ -997,23 +1038,85 @@ static struct platform_driver gpu_driver = {
     }
 };
 
+#ifdef CONFIG_JZSOC
+static struct resource gpu_resources[] = {
+    {    
+        .name   = "gpu_irq",
+        .flags  = IORESOURCE_IRQ,
+    },   
+    {    
+        .name   = "gpu_base",
+        .flags  = IORESOURCE_MEM,
+    },   
+    {    
+        .name   = "gpu_mem",
+        .flags  = IORESOURCE_DMA,
+    },   
+};
+
+static struct platform_device * gpu_device;
+#endif
+
 static int __init gpu_init(void)
 {
     int ret = 0;
 
-    printk("%s: -----> ENTERED <-----\n", __func__);
+#ifdef CONFIG_JZSOC
+    gpu_resources[0].start = gpu_resources[0].end = irqLine;
+
+    gpu_resources[1].start = registerMemBase;
+    gpu_resources[1].end   = registerMemBase + registerMemSize - 1;
+
+    gpu_resources[2].start = contiguousBase;
+    gpu_resources[2].end   = contiguousBase + contiguousSize - 1;
+
+    /* Allocate device */
+    gpu_device = platform_device_alloc(DEVICE_NAME, -1);
+    if (!gpu_device)
+    {
+        printk(KERN_ERR "galcore: platform_device_alloc failed.\n");
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    /* Insert resource */
+    ret = platform_device_add_resources(gpu_device, gpu_resources, 3);
+    if (ret)
+    {
+        printk(KERN_ERR "galcore: platform_device_add_resources failed.\n");
+        goto put_dev;
+    }
+
+    /* Add device */
+    ret = platform_device_add(gpu_device);
+    if (ret)
+    {
+        printk(KERN_ERR "galcore: platform_device_add failed.\n");
+        goto put_dev;
+    }
 
     ret = platform_driver_register(&gpu_driver);
+    if (!ret)
+    {
+        goto out;
+    }
 
-    printk("%s: -----> ret = %d <-----\n", __func__, ret);
-
+    platform_device_del(gpu_device);
+put_dev:
+    platform_device_put(gpu_device);
+out:
+#else
+    ret = platform_driver_register(&gpu_driver);
+#endif
     return ret;
 }
 
 static void __exit gpu_exit(void)
 {
-    printk("%s: -----> ENTERED <-----\n", __func__);
     platform_driver_unregister(&gpu_driver);
+#ifdef CONFIG_JZSOC
+    platform_device_unregister(gpu_device);
+#endif
 }
 
 // TODO: check all, implement, ...
@@ -1022,3 +1125,4 @@ module_init(gpu_init);
 module_exit(gpu_exit);
 
 #endif
+
