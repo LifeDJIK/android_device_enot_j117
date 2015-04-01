@@ -33,6 +33,16 @@
 #ifdef NO_DMA_COHERENT
 #include <linux/dma-mapping.h>
 #endif /* NO_DMA_COHERENT */
+#ifdef CONFIG_ARCH_RK29
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <mach/pmu.h>
+#endif
+
+#ifdef CONFIG_ARCH_RK29
+gctBOOL last_clock;
+gctBOOL last_power;
+#endif
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
 extern unsigned long plat_do_mmap_pgoff(struct file *file, unsigned long addr,
@@ -6359,10 +6369,57 @@ gckOS_SetGPUPower(
     IN gctBOOL Power
     )
 {
+#ifdef CONFIG_ARCH_RK29
+    struct clk *clk_gpu;
+    struct clk *aclk_gpu;
+    struct clk *aclk_ddr_gpu;
+    struct clk *hclk_gpu;
+#endif
+
     gcmkHEADER_ARG("Os=0x%x Clock=%d Power=%d", Os, Clock, Power);
 
-    /* TODO: Put your code here. */
+#ifdef CONFIG_ARCH_RK29
+    clk_gpu = clk_get(NULL, "gpu");
+    aclk_gpu = clk_get(NULL, "aclk_gpu");
+    aclk_ddr_gpu = clk_get(NULL, "aclk_ddr_gpu");
+    hclk_gpu = clk_get(NULL, "hclk_gpu");
+    mdelay(1);
+
+    if (last_clock != Clock) {
+        if (Clock) {
+            clk_enable(clk_gpu);
+            clk_enable(aclk_gpu);
+            clk_enable(aclk_ddr_gpu);
+            clk_enable(hclk_gpu);
+        } else {
+            clk_disable(hclk_gpu);
+            clk_disable(aclk_ddr_gpu);
+            clk_disable(aclk_gpu);
+            clk_disable(clk_gpu);
+        }
+    }
+    last_clock = Clock;
+    mdelay(1);
+
+    if (last_power != Power) {
+        if (Power) {
+            if (last_clock) {
+                clk_disable(aclk_ddr_gpu);
+            }
+            mdelay(1);
+            pmu_set_power_domain(PD_GPU, true);
+            mdelay(1);
+            if (last_clock) {
+                clk_enable(aclk_ddr_gpu);
+            }
+        } else {
+            pmu_set_power_domain(PD_GPU, false);
+        }
+    }
+    last_power = Power;
+    mdelay(1);
+#endif
+
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
 }
-
