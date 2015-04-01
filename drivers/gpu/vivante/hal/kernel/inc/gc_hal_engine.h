@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*    Copyright (C) 2005 - 2012 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -24,8 +24,13 @@
 #ifndef __gc_hal_engine_h_
 #define __gc_hal_engine_h_
 
+#ifndef VIVANTE_NO_3D
 #include "gc_hal_types.h"
 #include "gc_hal_enum.h"
+
+#if gcdENABLE_VG
+#include "gc_hal_engine_vg.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,11 +40,14 @@ extern "C" {
 ****************************** Object Declarations *****************************
 \******************************************************************************/
 
-typedef struct _gcoSTREAM *                gcoSTREAM;
-typedef struct _gcoVERTEX *                gcoVERTEX;
-typedef struct _gcoTEXTURE *              gcoTEXTURE;
-typedef struct _gcoINDEX *                gcoINDEX;
-typedef struct _gcsVERTEX_ATTRIBUTES *    gcsVERTEX_ATTRIBUTES_PTR;
+typedef struct _gcoSTREAM *             gcoSTREAM;
+typedef struct _gcoVERTEX *             gcoVERTEX;
+typedef struct _gcoTEXTURE *            gcoTEXTURE;
+typedef struct _gcoINDEX *              gcoINDEX;
+typedef struct _gcsVERTEX_ATTRIBUTES *  gcsVERTEX_ATTRIBUTES_PTR;
+typedef struct _gcoVERTEXARRAY *        gcoVERTEXARRAY;
+
+#define gcdATTRIBUTE_COUNT              16
 
 /******************************************************************************\
 ********************************* Enumerations *********************************
@@ -83,6 +91,7 @@ typedef enum _gceCOMPARE
     gcvCOMPARE_GREATER,
     gcvCOMPARE_GREATER_OR_EQUAL,
     gcvCOMPARE_ALWAYS,
+    gcvCOMPARE_INVALID = -1
 }
 gceCOMPARE;
 
@@ -106,6 +115,7 @@ typedef enum _gceSTENCIL_OPERATION
     gcvSTENCIL_DECREMENT,
     gcvSTENCIL_INCREMENT_SATURATE,
     gcvSTENCIL_DECREMENT_SATURATE,
+    gcvSTENCIL_OPERATION_INVALID = -1
 }
 gceSTENCIL_OPERATION;
 
@@ -157,6 +167,7 @@ typedef enum _gcePRIMITIVE
     gcvPRIMITIVE_TRIANGLE_LIST,
     gcvPRIMITIVE_TRIANGLE_STRIP,
     gcvPRIMITIVE_TRIANGLE_FAN,
+    gcvPRIMITIVE_RECTANGLE,
 }
 gcePRIMITIVE;
 
@@ -207,6 +218,12 @@ gcoHAL_QueryTextureCaps(
     OUT gctBOOL * NonPowerOfTwo,
     OUT gctUINT * VertexSamplers,
     OUT gctUINT * PixelSamplers
+    );
+
+gceSTATUS
+gcoHAL_QueryTextureMaxAniso(
+    IN gcoHAL Hal,
+    OUT gctUINT * MaxAnisoValue
     );
 
 gceSTATUS
@@ -265,7 +282,6 @@ gcoSURF_ClearRect(
     );
 
 /* TO BE REMOVED */
-#if 1
     gceSTATUS
     depr_gcoSURF_Resolve(
         IN gcoSURF SrcSurface,
@@ -294,7 +310,6 @@ gcoSURF_ClearRect(
         IN gcsPOINT_PTR DestOrigin,
         IN gcsPOINT_PTR RectSize
         );
-#endif
 
 /* Resample surface. */
 gceSTATUS
@@ -308,6 +323,50 @@ gceSTATUS
 gcoSURF_Resolve(
     IN gcoSURF SrcSurface,
     IN gcoSURF DestSurface
+    );
+
+/* Export the render target. */
+gceSTATUS
+gcoSURF_ExportRenderTarget(
+    IN gcoSURF SrcSurface
+);
+
+/* Import the render target. */
+gceSTATUS
+gcoSURF_ImportRenderTarget(
+    IN gctUINT32 Pid,
+    IN gcoSURF SrcSurface
+);
+
+/* Save the Resolve info to kernel. */
+gceSTATUS
+gcoSURF_PrepareRemoteResolveRect(
+    IN gcoSURF SrcSurface,
+    IN gcsPOINT_PTR SrcOrigin,
+    IN gcsPOINT_PTR DestOrigin,
+    IN gcsPOINT_PTR RectSize
+    );
+
+/* Resolve using the rectangle info previously saved in the vid mem node. */
+gceSTATUS
+gcoSURF_ResolveFromStoredRect(
+    IN gcoSURF SrcSurface,
+    IN gcoSURF DestSurface
+    );
+
+/* Using the info that Process Pid saved to do resolve. */
+gceSTATUS
+gcoSURF_RemoteResolveRect(
+    IN gcoSURF SrcSurface,
+    IN gcoSURF DestSurface,
+    IN gctBOOL *resolveDiscarded
+    );
+
+/* Return the "resolve submitted indicator" signal. */
+gceSTATUS
+gcoSURF_GetRTSignal(
+    IN gcoSURF RTSurface,
+    OUT gctSIGNAL * resolveSubmittedSignal
     );
 
 /* Resolve rectangular area of a surface. */
@@ -325,6 +384,11 @@ gceSTATUS
 gcoSURF_SetResolvability(
     IN gcoSURF Surface,
     IN gctBOOL Resolvable
+    );
+
+gceSTATUS
+gcoSURF_IsRenderable(
+    IN gcoSURF Surface
     );
 
 /******************************************************************************\
@@ -361,15 +425,6 @@ gcoINDEX_Unlock(
 /* Upload index data into the memory. */
 gceSTATUS
 gcoINDEX_Load(
-    IN gcoINDEX Index,
-    IN gceINDEX_TYPE IndexType,
-    IN gctUINT32 IndexCount,
-    IN gctPOINTER IndexBuffer
-    );
-
-/* Bind an index object to the hardware, for neocore hacking*/
-gceSTATUS
-gcoINDEX_LoadHack(
     IN gcoINDEX Index,
     IN gceINDEX_TYPE IndexType,
     IN gctUINT32 IndexCount,
@@ -456,10 +511,10 @@ gcoINDEX_UploadDynamic(
 /* Clear flags. */
 typedef enum _gceCLEAR
 {
-    gcvCLEAR_COLOR                = 0x1,
-    gcvCLEAR_DEPTH                = 0x2,
+    gcvCLEAR_COLOR              = 0x1,
+    gcvCLEAR_DEPTH              = 0x2,
     gcvCLEAR_STENCIL            = 0x4,
-    gcvCLEAR_HZ                    = 0x8,
+    gcvCLEAR_HZ                 = 0x8,
     gcvCLEAR_HAS_VAA            = 0x10,
 }
 gceCLEAR;
@@ -780,6 +835,14 @@ gco3D_SetDepthScaleBiasF(
     IN gctFLOAT DepthBias
     );
 
+/* Set depth near and far clipping plane. */
+gceSTATUS
+gco3D_SetDepthPlaneF(
+    IN gco3D Engine,
+    IN gctFLOAT Near,
+    IN gctFLOAT Far
+    );
+
 /* Enable or disable dithering. */
 gceSTATUS
 gco3D_EnableDither(
@@ -801,12 +864,42 @@ gco3D_SetEarlyDepth(
     IN gctBOOL Enable
     );
 
+/* Enable or disable all early depth operations. */
+gceSTATUS
+gco3D_SetAllEarlyDepthModes(
+    IN gco3D Engine,
+    IN gctBOOL Disable
+    );
+
 /* Enable or disable depth-only mode. */
 gceSTATUS
 gco3D_SetDepthOnly(
     IN gco3D Engine,
     IN gctBOOL Enable
     );
+
+typedef struct _gcsSTENCIL_INFO * gcsSTENCIL_INFO_PTR;
+typedef struct _gcsSTENCIL_INFO
+{
+    gceSTENCIL_MODE         mode;
+
+    gctUINT8                mask;
+    gctUINT8                writeMask;
+
+    gctUINT8                referenceFront;
+
+    gceCOMPARE              compareFront;
+    gceSTENCIL_OPERATION    passFront;
+    gceSTENCIL_OPERATION    failFront;
+    gceSTENCIL_OPERATION    depthFailFront;
+
+    gctUINT8                referenceBack;
+    gceCOMPARE              compareBack;
+    gceSTENCIL_OPERATION    passBack;
+    gceSTENCIL_OPERATION    failBack;
+    gceSTENCIL_OPERATION    depthFailBack;
+}
+gcsSTENCIL_INFO;
 
 /* Set stencil mode. */
 gceSTATUS
@@ -868,6 +961,36 @@ gco3D_SetStencilDepthFail(
     IN gceSTENCIL_WHERE Where,
     IN gceSTENCIL_OPERATION Operation
     );
+
+/* Set all stencil states in one blow. */
+gceSTATUS
+gco3D_SetStencilAll(
+    IN gco3D Engine,
+    IN gcsSTENCIL_INFO_PTR Info
+    );
+
+typedef struct _gcsALPHA_INFO * gcsALPHA_INFO_PTR;
+typedef struct _gcsALPHA_INFO
+{
+    /* Alpha test states. */
+    gctBOOL                 test;
+    gceCOMPARE              compare;
+    gctUINT8                reference;
+
+    /* Alpha blending states. */
+    gctBOOL                 blend;
+
+    gceBLEND_FUNCTION       srcFuncColor;
+    gceBLEND_FUNCTION       srcFuncAlpha;
+    gceBLEND_FUNCTION       trgFuncColor;
+    gceBLEND_FUNCTION       trgFuncAlpha;
+
+    gceBLEND_MODE           modeColor;
+    gceBLEND_MODE           modeAlpha;
+
+    gctUINT32               color;
+}
+gcsALPHA_INFO;
 
 /* Enable or disable alpha test. */
 gceSTATUS
@@ -934,6 +1057,16 @@ gco3D_DrawPrimitives(
     IN gctSIZE_T PrimitiveCount
     );
 
+gceSTATUS
+gco3D_DrawPrimitivesCount(
+    IN gco3D Engine,
+    IN gcePRIMITIVE Type,
+    IN gctINT* StartVertex,
+    IN gctSIZE_T* VertexCount,
+    IN gctSIZE_T PrimitiveCount
+    );
+
+
 /* Draw a number of primitives using offsets. */
 gceSTATUS
 gco3D_DrawPrimitivesOffset(
@@ -979,7 +1112,7 @@ gco3D_WriteBuffer(
     IN gctBOOL Aligned
     );
 
-/*Send sempahore and stall until sempahore is signalled.*/
+/* Send sempahore and stall until sempahore is signalled. */
 gceSTATUS
 gco3D_Semaphore(
     IN gco3D Engine,
@@ -987,13 +1120,80 @@ gco3D_Semaphore(
     IN gceWHERE To,
     IN gceHOW How);
 
-/*Set the subpixels center .*/
+/* Set the subpixels center. */
 gceSTATUS
 gco3D_SetCentroids(
-    IN gco3D        Engine,
-    IN gctUINT32    Index,
-    IN gctPOINTER    Centroids
+    IN gco3D Engine,
+    IN gctUINT32 Index,
+    IN gctPOINTER Centroids
     );
+
+gceSTATUS
+gco3D_SetLogicOp(
+    IN gco3D Engine,
+    IN gctUINT8 Rop
+    );
+
+/* OCL thread walker information. */
+typedef struct _gcsTHREAD_WALKER_INFO * gcsTHREAD_WALKER_INFO_PTR;
+typedef struct _gcsTHREAD_WALKER_INFO
+{
+    gctUINT32   dimensions;
+    gctUINT32   traverseOrder;
+    gctUINT32   enableSwathX;
+    gctUINT32   enableSwathY;
+    gctUINT32   enableSwathZ;
+    gctUINT32   swathSizeX;
+    gctUINT32   swathSizeY;
+    gctUINT32   swathSizeZ;
+    gctUINT32   valueOrder;
+
+    gctUINT32   globalSizeX;
+    gctUINT32   globalOffsetX;
+    gctUINT32   globalSizeY;
+    gctUINT32   globalOffsetY;
+    gctUINT32   globalSizeZ;
+    gctUINT32   globalOffsetZ;
+
+    gctUINT32   workGroupSizeX;
+    gctUINT32   workGroupCountX;
+    gctUINT32   workGroupSizeY;
+    gctUINT32   workGroupCountY;
+    gctUINT32   workGroupSizeZ;
+    gctUINT32   workGroupCountZ;
+
+    gctUINT32   threadAllocation;
+}
+gcsTHREAD_WALKER_INFO;
+
+/* Start OCL thread walker. */
+gceSTATUS
+gco3D_InvokeThreadWalker(
+    IN gco3D Engine,
+    IN gcsTHREAD_WALKER_INFO_PTR Info
+    );
+
+#if gcdUSE_WCLIP_PATCH
+/* Set w clip and w plane limit value. */
+gceSTATUS
+gco3D_SetWClipEnable(
+	IN gco3D Engine,
+	IN gctBOOL Enable
+    );
+
+gceSTATUS
+gco3D_SetWPlaneLimitF(
+	IN gco3D Engine,
+	IN gctFLOAT Value
+    );
+
+gceSTATUS
+gco3D_SetWPlaneLimitX(
+	IN gco3D Engine,
+	IN gctFIXED_POINT Value
+    );
+#endif
+
 /*----------------------------------------------------------------------------*/
 /*-------------------------- gco3D Fragment Processor ------------------------*/
 
@@ -1122,6 +1322,11 @@ gco3D_SetAlphaTextureFunction(
     IN gctINT Scale
     );
 
+/* Invoke OCL thread walker. */
+gceSTATUS
+gcoHARDWARE_InvokeThreadWalker(
+    IN gcsTHREAD_WALKER_INFO_PTR Info
+    );
 
 /******************************************************************************\
 ******************************* gcoTEXTURE Object *******************************
@@ -1154,6 +1359,7 @@ typedef struct _gcsTEXTURE
     gceTEXTURE_FILTER           minFilter;
     gceTEXTURE_FILTER           magFilter;
     gceTEXTURE_FILTER           mipFilter;
+    gctUINT                     anisoFilter;
 
     /* Level of detail. */
     gctFIXED_POINT              lodBias;
@@ -1161,7 +1367,6 @@ typedef struct _gcsTEXTURE
     gctFIXED_POINT              lodMax;
 }
 gcsTEXTURE, * gcsTEXTURE_PTR;
-
 
 /* Construct a new gcoTEXTURE object. */
 gceSTATUS
@@ -1253,6 +1458,7 @@ gceSTATUS
 gcoTEXTURE_AddMipMap(
     IN gcoTEXTURE Texture,
     IN gctINT Level,
+    IN gctINT imageFormat,
     IN gceSURF_FORMAT Format,
     IN gctUINT Width,
     IN gctUINT Height,
@@ -1283,100 +1489,6 @@ gcoTEXTURE_SetEndianHint(
     );
 
 gceSTATUS
-gcoTEXTURE_SetAddressingMode(
-    IN gcoTEXTURE Texture,
-    IN gceTEXTURE_WHICH Which,
-    IN gceTEXTURE_ADDRESSING Mode
-    );
-
-gceSTATUS
-gcoTEXTURE_SetBorderColor(
-    IN gcoTEXTURE Texture,
-    IN gctUINT Red,
-    IN gctUINT Green,
-    IN gctUINT Blue,
-    IN gctUINT Alpha
-    );
-
-gceSTATUS
-gcoTEXTURE_SetBorderColorX(
-    IN gcoTEXTURE Texture,
-    IN gctFIXED_POINT Red,
-    IN gctFIXED_POINT Green,
-    IN gctFIXED_POINT Blue,
-    IN gctFIXED_POINT Alpha
-    );
-
-gceSTATUS
-gcoTEXTURE_SetBorderColorF(
-    IN gcoTEXTURE Texture,
-    IN gctFLOAT Red,
-    IN gctFLOAT Green,
-    IN gctFLOAT Blue,
-    IN gctFLOAT Alpha
-    );
-
-gceSTATUS
-gcoTEXTURE_SetMinFilter(
-    IN gcoTEXTURE Texture,
-    IN gceTEXTURE_FILTER Filter
-    );
-
-gceSTATUS
-gcoTEXTURE_SetMagFilter(
-    IN gcoTEXTURE Texture,
-    IN gceTEXTURE_FILTER Filter
-    );
-
-gceSTATUS
-gcoTEXTURE_SetMipFilter(
-    IN gcoTEXTURE Texture,
-    IN gceTEXTURE_FILTER Filter
-    );
-
-gceSTATUS
-gcoTEXTURE_SetLODBiasX(
-    IN gcoTEXTURE Texture,
-    IN gctFIXED_POINT Bias
-    );
-
-gceSTATUS
-gcoTEXTURE_SetLODBiasF(
-    IN gcoTEXTURE Texture,
-    IN gctFLOAT Bias
-    );
-
-gceSTATUS
-gcoTEXTURE_SetLODMinX(
-    IN gcoTEXTURE Texture,
-    IN gctFIXED_POINT LevelOfDetail
-    );
-
-gceSTATUS
-gcoTEXTURE_SetLODMinF(
-    IN gcoTEXTURE Texture,
-    IN gctFLOAT LevelOfDetail
-    );
-
-gceSTATUS
-gcoTEXTURE_SetLODMaxX(
-    IN gcoTEXTURE Texture,
-    IN gctFIXED_POINT LevelOfDetail
-    );
-
-gceSTATUS
-gcoTEXTURE_SetLODMaxF(
-    IN gcoTEXTURE Texture,
-    IN gctFLOAT LevelOfDetail
-    );
-
-gceSTATUS
-gcoTEXTURE_Bind(
-    IN gcoTEXTURE Texture,
-    IN gctINT Sampler
-    );
-
-gceSTATUS
 gcoTEXTURE_Disable(
     IN gcoHAL Hal,
     IN gctINT Sampler
@@ -1389,7 +1501,7 @@ gcoTEXTURE_Flush(
 
 gceSTATUS
 gcoTEXTURE_QueryCaps(
-    IN    gcoHAL      Hal,
+    IN  gcoHAL    Hal,
     OUT gctUINT * MaxWidth,
     OUT gctUINT * MaxHeight,
     OUT gctUINT * MaxDepth,
@@ -1427,6 +1539,7 @@ gcoTEXTURE_IsComplete(
 gceSTATUS
 gcoTEXTURE_BindTexture(
     IN gcoTEXTURE Texture,
+    IN gctINT Target,
     IN gctINT Sampler,
     IN gcsTEXTURE_PTR Info
     );
@@ -1446,6 +1559,8 @@ typedef enum _gceVERTEX_FORMAT
     gcvVERTEX_FIXED,
     gcvVERTEX_HALF,
     gcvVERTEX_FLOAT,
+    gcvVERTEX_UNSIGNED_INT_10_10_10_2,
+    gcvVERTEX_INT_10_10_10_2,
 }
 gceVERTEX_FORMAT;
 
@@ -1484,7 +1599,8 @@ gcoSTREAM_Lock(
 
 gceSTATUS
 gcoSTREAM_Unlock(
-    IN gcoSTREAM Stream);
+    IN gcoSTREAM Stream
+    );
 
 gceSTATUS
 gcoSTREAM_Reserve(
@@ -1507,13 +1623,13 @@ gcoSTREAM_SetDynamic(
 
 typedef struct _gcsSTREAM_INFO
 {
-    gctUINT                index;
+    gctUINT             index;
     gceVERTEX_FORMAT    format;
-    gctBOOL                normalized;
-    gctUINT                components;
-    gctSIZE_T            size;
+    gctBOOL             normalized;
+    gctUINT             components;
+    gctSIZE_T           size;
     gctCONST_POINTER    data;
-    gctUINT                stride;
+    gctUINT             stride;
 }
 gcsSTREAM_INFO, * gcsSTREAM_INFO_PTR;
 
@@ -1526,6 +1642,12 @@ gcoSTREAM_UploadDynamic(
     IN gcoVERTEX Vertex
     );
 
+gceSTATUS
+gcoSTREAM_CPUCacheOperation(
+    IN gcoSTREAM Stream,
+    IN gceCACHEOPERATION Operation
+    );
+
 /******************************************************************************\
 ******************************** gcoVERTEX Object ******************************
 \******************************************************************************/
@@ -1533,12 +1655,12 @@ gcoSTREAM_UploadDynamic(
 typedef struct _gcsVERTEX_ATTRIBUTES
 {
     gceVERTEX_FORMAT            format;
-    gctBOOL                        normalized;
-    gctUINT32                    components;
-    gctSIZE_T                    size;
-    gctUINT32                    stream;
-    gctUINT32                    offset;
-    gctUINT32                    stride;
+    gctBOOL                     normalized;
+    gctUINT32                   components;
+    gctSIZE_T                   size;
+    gctUINT32                   stream;
+    gctUINT32                   offset;
+    gctUINT32                   stride;
 }
 gcsVERTEX_ATTRIBUTES;
 
@@ -1581,17 +1703,178 @@ gcoVERTEX_Bind(
     IN gcoVERTEX Vertex
     );
 
+/*******************************************************************************
+***** gcoVERTEXARRAY Object ***************************************************/
+
+typedef struct _gcsVERTEXARRAY
+{
+    /* Enabled. */
+    gctBOOL             enable;
+
+    /* Number of components. */
+    gctINT              size;
+
+    /* Attribute format. */
+    gceVERTEX_FORMAT    format;
+
+    /* Flag whether the attribute is normalized or not. */
+    gctBOOL             normalized;
+
+    /* Stride of the component. */
+    gctUINT             stride;
+
+    /* Pointer to the attribute data. */
+    gctCONST_POINTER    pointer;
+
+    /* Stream object owning the attribute data. */
+    gcoSTREAM           stream;
+
+    /* Generic values for attribute. */
+    gctFLOAT            genericValue[4];
+
+    /* Generic size for attribute. */
+    gctINT              genericSize;
+
+    /* Vertex shader linkage. */
+    gctUINT             linkage;
+}
+gcsVERTEXARRAY,
+* gcsVERTEXARRAY_PTR;
+
 gceSTATUS
-gcoVERTEX_BindHack(
-    IN gctUINT32 ActiveAttributeCount,
-    IN gctUINT32 TotalStride,
-    IN gcoVERTEX Vertex,
-    IN gctUINT32 Address
+gcoVERTEXARRAY_Construct(
+    IN gcoHAL Hal,
+    OUT gcoVERTEXARRAY * Vertex
+    );
+
+gceSTATUS
+gcoVERTEXARRAY_Destroy(
+    IN gcoVERTEXARRAY Vertex
+    );
+
+gceSTATUS
+gcoVERTEXARRAY_Bind(
+    IN gcoVERTEXARRAY Vertex,
+    IN gctUINT32 EnableBits,
+    IN gcsVERTEXARRAY_PTR VertexArray,
+    IN gctUINT First,
+    IN gctSIZE_T Count,
+    IN gceINDEX_TYPE IndexType,
+    IN gcoINDEX IndexObject,
+    IN gctPOINTER IndexMemory,
+    IN OUT gcePRIMITIVE * PrimitiveType,
+    IN OUT gctUINT * PrimitiveCount
+    );
+
+/*******************************************************************************
+***** Composition *************************************************************/
+
+typedef enum _gceCOMPOSITION
+{
+    gcvCOMPOSE_CLEAR = 1,
+    gcvCOMPOSE_BLUR,
+    gcvCOMPOSE_DIM,
+    gcvCOMPOSE_LAYER
+}
+gceCOMPOSITION;
+
+typedef struct _gcsCOMPOSITION * gcsCOMPOSITION_PTR;
+typedef struct _gcsCOMPOSITION
+{
+    /* Structure size. */
+    gctUINT                         structSize;
+
+    /* Composition operation. */
+    gceCOMPOSITION                  operation;
+
+    /* Layer to be composed. */
+    gcoSURF                         layer;
+
+    /* Source and target coordinates. */
+    gcsRECT                         srcRect;
+    gcsRECT                         trgRect;
+
+    /* Target rectangle */
+    gcsPOINT                        v0;
+    gcsPOINT                        v1;
+    gcsPOINT                        v2;
+
+    /* Blending parameters. */
+    gctBOOL                         enableBlending;
+    gctBOOL                         premultiplied;
+    gctUINT8                        alphaValue;
+
+    /* Clear color. */
+    gctFLOAT                        r;
+    gctFLOAT                        g;
+    gctFLOAT                        b;
+    gctFLOAT                        a;
+}
+gcsCOMPOSITION;
+
+gceSTATUS
+gco3D_ProbeComposition(
+    gctBOOL ResetIfEmpty
+    );
+
+gceSTATUS
+gco3D_CompositionBegin(
+    void
+    );
+
+gceSTATUS
+gco3D_ComposeLayer(
+    IN gcsCOMPOSITION_PTR Layer
+    );
+
+gceSTATUS
+gco3D_CompositionSignals(
+    IN gctHANDLE Process,
+    IN gctSIGNAL Signal1,
+    IN gctSIGNAL Signal2
+    );
+
+gceSTATUS
+gco3D_CompositionEnd(
+    IN gcoSURF Target,
+    IN gctBOOL Synchronous
+    );
+
+/* Frame Database */
+gceSTATUS
+gcoHAL_AddFrameDB(
+    void
+    );
+
+gceSTATUS
+gcoHAL_DumpFrameDB(
+    gctCONST_STRING Filename OPTIONAL
+    );
+
+gceSTATUS
+gcoHAL_GetSharedInfo(
+    IN gctUINT32 Pid,
+    IN gctUINT32 DataId,
+    OUT gctUINT8_PTR Data,
+    IN gctSIZE_T Bytes,
+    IN gcuVIDMEM_NODE_PTR Node,
+    OUT gctUINT8_PTR NodeData,
+    IN gceVIDMEM_NODE_SHARED_INFO_TYPE SharedInfoType
+    );
+
+gceSTATUS
+gcoHAL_SetSharedInfo(
+    IN gctUINT32 DataId,
+    IN gctUINT8_PTR Data,
+    IN gctSIZE_T Bytes,
+    IN gcuVIDMEM_NODE_PTR Node,
+    IN gctUINT8_PTR NodeData,
+    IN gceVIDMEM_NODE_SHARED_INFO_TYPE SharedInfoType
     );
 
 #ifdef __cplusplus
 }
 #endif
 
+#endif /* VIVANTE_NO_3D */
 #endif /* __gc_hal_engine_h_ */
-

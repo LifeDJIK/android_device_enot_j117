@@ -20,5 +20,12 @@ config VIVANTE_GPU_PROFILER
 config VIVANTE_GPU_NEWSIGNAL
 	boolean "Use new linux signal"
 
+config VIVANTE_GPU_NO_DMA_COHERENT
+	boolean "Disable coherent DMA function"
+
+config VIVANTE_GPU_POWER_MANAGEMENT
+	boolean "Enable power management"
+	default y
+
 endmenu
 endif

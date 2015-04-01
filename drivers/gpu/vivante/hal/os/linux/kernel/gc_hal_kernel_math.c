@@ -21,11 +21,14 @@
 
 
 
-#ifndef __gc_hal_kernel_precomp_h_
-#define __gc_hal_kernel_precomp_h_
+#include "gc_hal_kernel_linux.h"
 
-#include "gc_hal.h"
-#include "gc_hal_driver.h"
-#include "gc_hal_kernel.h"
-
-#endif /* __gc_hal_kernel_precomp_h_ */
+gctINT
+gckMATH_ModuloInt(
+    IN gctINT X,
+    IN gctINT Y
+    )
+{
+    if(Y ==0) {return 0;}
+    else {return X % Y;}
+}

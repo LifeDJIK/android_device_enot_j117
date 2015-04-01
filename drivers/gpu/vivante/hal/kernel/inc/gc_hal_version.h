@@ -21,11 +21,19 @@
 
 
 
-#ifndef __gc_hal_kernel_precomp_h_
-#define __gc_hal_kernel_precomp_h_
+#ifndef __gc_hal_version_h_
+#define __gc_hal_version_h_
 
-#include "gc_hal.h"
-#include "gc_hal_driver.h"
-#include "gc_hal_kernel.h"
+#define gcvVERSION_MAJOR        4
 
-#endif /* __gc_hal_kernel_precomp_h_ */
+#define gcvVERSION_MINOR        6
+
+#define gcvVERSION_PATCH        8
+
+#define gcvVERSION_BUILD        1443
+
+#define gcvVERSION_DATE      __DATE__
+
+#define gcvVERSION_TIME      __TIME__
+
+#endif /* __gc_hal_version_h_ */

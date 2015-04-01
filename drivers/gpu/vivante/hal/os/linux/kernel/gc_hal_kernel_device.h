@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*    Copyright (C) 2005 - 2012 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -24,16 +24,10 @@
 #ifndef __gc_hal_kernel_device_h_
 #define __gc_hal_kernel_device_h_
 
-#define gcdkUSE_MEMORY_RECORD        1
-
-#ifndef gcdkREPORT_VIDMEM_USAGE
-#define gcdkREPORT_VIDMEM_USAGE        0
-#endif
-
 #ifdef ANDROID
-#define gcdkREPORT_VIDMEM_LEAK        0
+#define gcdkREPORT_VIDMEM_LEAK      0
 #else
-#define gcdkREPORT_VIDMEM_LEAK        1
+#define gcdkREPORT_VIDMEM_LEAK      1
 #endif
 
 /******************************************************************************\
@@ -43,104 +37,70 @@
 typedef struct _gckGALDEVICE
 {
     /* Objects. */
-    gckOS                os;
-    gckKERNEL            kernel;
+    gckOS               os;
+    gckKERNEL           kernels[gcdGPU_COUNT];
 
     /* Attributes. */
-    gctSIZE_T            internalSize;
+    gctSIZE_T           internalSize;
     gctPHYS_ADDR        internalPhysical;
-    gctPOINTER            internalLogical;
-    gckVIDMEM            internalVidMem;
-    gctSIZE_T            externalSize;
+    gctPOINTER          internalLogical;
+    gckVIDMEM           internalVidMem;
+    gctSIZE_T           externalSize;
     gctPHYS_ADDR        externalPhysical;
-    gctPOINTER            externalLogical;
-    gckVIDMEM            externalVidMem;
-    gckVIDMEM            contiguousVidMem;
-    gctPOINTER            contiguousBase;
+    gctPOINTER          externalLogical;
+    gckVIDMEM           externalVidMem;
+    gckVIDMEM           contiguousVidMem;
+    gctPOINTER          contiguousBase;
     gctPHYS_ADDR        contiguousPhysical;
-    gctSIZE_T            contiguousSize;
-    gctBOOL                contiguousMapped;
-    gctPOINTER            contiguousMappedUser;
-    gctSIZE_T            systemMemorySize;
-    gctUINT32            systemMemoryBaseAddress;
-    gctPOINTER            registerBase;
-    gctSIZE_T            registerSize;
-    gctUINT32            baseAddress;
+    gctSIZE_T           contiguousSize;
+    gctBOOL             contiguousMapped;
+    gctPOINTER          contiguousMappedUser;
+    gctSIZE_T           systemMemorySize;
+    gctUINT32           systemMemoryBaseAddress;
+    gctPOINTER          registerBases[gcdGPU_COUNT];
+    gctSIZE_T           registerSizes[gcdGPU_COUNT];
+    gctUINT32           baseAddress;
+    gctUINT32           requestedRegisterMemBases[gcdGPU_COUNT];
+    gctSIZE_T           requestedRegisterMemSizes[gcdGPU_COUNT];
+    gctUINT32           requestedContiguousBase;
+    gctSIZE_T           requestedContiguousSize;
 
     /* IRQ management. */
-    gctINT                irqLine;
-    gctBOOL                isrInitialized;
-    gctBOOL                dataReady;
+    gctINT              irqLines[gcdGPU_COUNT];
+    gctBOOL             isrInitializeds[gcdGPU_COUNT];
+    gctBOOL             dataReadys[gcdGPU_COUNT];
 
     /* Thread management. */
-    struct task_struct    *threadCtxt;
-    struct semaphore    sema;
-    gctBOOL                threadInitialized;
-    gctBOOL                killThread;
+    struct task_struct  *threadCtxts[gcdGPU_COUNT];
+    struct semaphore    semas[gcdGPU_COUNT];
+    gctBOOL             threadInitializeds[gcdGPU_COUNT];
+    gctBOOL             killThread;
 
     /* Signal management. */
-    gctINT                signal;
+    gctINT              signal;
+
+    /* Core mapping */
+    gceCORE             coreMapping[8];
+
+    /* States before suspend. */
+    gceCHIPPOWERSTATE   statesStored[gcdGPU_COUNT];
 
     /* Clock management. */
-    struct clk            *clk;
+    struct clk          *clk;
+    int                 clk_enabled;
+
+    /* Device pointer for dma_alloc_coherent */
+    struct device       *dev;
 }
 * gckGALDEVICE;
-
-#if gcdkUSE_MEMORY_RECORD
-typedef enum _gceMEMORY_TYPE
-{
-    gcvNON_PAGED_MEMORY     = 0,
-    gcvCONTIGUOUS_MEMORY,
-    gcvVIDEO_MEMORY
-}
-gceMEMORY_TYPE;
-
-typedef struct MEMORY_RECORD
-{
-    gceMEMORY_TYPE          type;
-
-    union
-    {
-        struct
-        {
-            gctSIZE_T               bytes;
-            gctPHYS_ADDR            physical;
-            gctPOINTER              logical;
-        }
-        Memory;
-
-        struct
-        {
-            gcuVIDMEM_NODE_PTR        node;
-            gceSURF_TYPE            type;
-            gctSIZE_T                bytes;
-        }
-        VideoMemory;
-    }
-    u;
-
-    struct MEMORY_RECORD *    prev;
-    struct MEMORY_RECORD *    next;
-}
-MEMORY_RECORD, * MEMORY_RECORD_PTR;
-#endif
 
 typedef struct _gcsHAL_PRIVATE_DATA
 {
     gckGALDEVICE        device;
-    gctPOINTER            mappedMemory;
-    gctPOINTER            contiguousLogical;
-
-#if gcdkUSE_MEMORY_RECORD
-    MEMORY_RECORD        memoryRecordList;
-
-#if gcdkREPORT_VIDMEM_USAGE
-    gctUINT64           allocatedMem[gcvSURF_NUM_TYPES];
-    gctUINT64           maxAllocatedMem[gcvSURF_NUM_TYPES];
-    gctUINT64           totalAllocatedMem;
-    gctUINT64           maxTotalAllocatedMem;
-#endif
-#endif
+    gctPOINTER          mappedMemory;
+    gctPOINTER          contiguousLogical;
+    /* The process opening the device may not be the same as the one that closes it. */
+    gctUINT32           pidOpen;
 }
 gcsHAL_PRIVATE_DATA, * gcsHAL_PRIVATE_DATA_PTR;
 
@@ -148,15 +108,31 @@ gceSTATUS gckGALDEVICE_Setup_ISR(
     IN gckGALDEVICE Device
     );
 
+gceSTATUS gckGALDEVICE_Setup_ISR_2D(
+    IN gckGALDEVICE Device
+    );
+
+gceSTATUS gckGALDEVICE_Setup_ISR_VG(
+    IN gckGALDEVICE Device
+    );
+
 gceSTATUS gckGALDEVICE_Release_ISR(
     IN gckGALDEVICE Device
     );
 
-gceSTATUS gckGALDEVICE_Start_Thread(
+gceSTATUS gckGALDEVICE_Release_ISR_2D(
     IN gckGALDEVICE Device
     );
 
-gceSTATUS gckGALDEVICE_Stop_Thread(
+gceSTATUS gckGALDEVICE_Release_ISR_VG(
+    IN gckGALDEVICE Device
+    );
+
+gceSTATUS gckGALDEVICE_Start_Threads(
+    IN gckGALDEVICE Device
+    );
+
+gceSTATUS gckGALDEVICE_Stop_Threads(
     gckGALDEVICE Device
     );
 
@@ -172,12 +148,19 @@ gceSTATUS gckGALDEVICE_Construct(
     IN gctINT IrqLine,
     IN gctUINT32 RegisterMemBase,
     IN gctSIZE_T RegisterMemSize,
+    IN gctINT IrqLine2D,
+    IN gctUINT32 RegisterMemBase2D,
+    IN gctSIZE_T RegisterMemSize2D,
+    IN gctINT IrqLineVG,
+    IN gctUINT32 RegisterMemBaseVG,
+    IN gctSIZE_T RegisterMemSizeVG,
     IN gctUINT32 ContiguousBase,
     IN gctSIZE_T ContiguousSize,
     IN gctSIZE_T BankSize,
     IN gctINT FastClear,
     IN gctINT Compression,
-    IN gctUINT32 BaseAddress,
+    IN gctUINT32 PhysBaseAddr,
+    IN gctUINT32 PhysSize,
     IN gctINT Signal,
     OUT gckGALDEVICE *Device
     );
@@ -187,4 +170,3 @@ gceSTATUS gckGALDEVICE_Destroy(
     );
 
 #endif /* __gc_hal_kernel_device_h_ */
-

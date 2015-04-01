@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*    Copyright (C) 2005 - 2012 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -22,10 +22,10 @@
 
 
 /**
-**    @file
-**    gckHEAP object for kernel HAL layer.  The heap implemented here is an arena-
-**    based memory allocation.  An arena-based memory heap allocates data quickly
-**    from specified arenas and reduces memory fragmentation.
+**  @file
+**  gckHEAP object for kernel HAL layer.  The heap implemented here is an arena-
+**  based memory allocation.  An arena-based memory heap allocates data quickly
+**  from specified arenas and reduces memory fragmentation.
 **
 */
 #include "gc_hal_kernel_precomp.h"
@@ -36,26 +36,26 @@
 ***** Structures ***************************************************************
 *******************************************************************************/
 
-#define gcdIN_USE                ((gcskNODE_PTR) ~0)
+#define gcdIN_USE               ((gcskNODE_PTR) ~0)
 
-typedef struct _gcskNODE *        gcskNODE_PTR;
+typedef struct _gcskNODE *      gcskNODE_PTR;
 typedef struct _gcskNODE
 {
     /* Number of byets in node. */
-    gctSIZE_T                    bytes;
+    gctSIZE_T                   bytes;
 
     /* Pointer to next free node, or gcvNULL to mark the node as freed, or
     ** gcdIN_USE to mark the node as used. */
     gcskNODE_PTR                next;
 
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
     /* Time stamp of allocation. */
-    gctUINT64                    timeStamp;
+    gctUINT64                   timeStamp;
 #endif
 }
 gcskNODE;
 
-typedef struct _gcskHEAP    *    gcskHEAP_PTR;
+typedef struct _gcskHEAP    *   gcskHEAP_PTR;
 typedef struct _gcskHEAP
 {
     /* Linked list. */
@@ -63,7 +63,7 @@ typedef struct _gcskHEAP
     gcskHEAP_PTR                prev;
 
     /* Heap size. */
-    gctSIZE_T                    size;
+    gctSIZE_T                   size;
 
     /* Free list. */
     gcskNODE_PTR                freeList;
@@ -73,33 +73,33 @@ gcskHEAP;
 struct _gckHEAP
 {
     /* Object. */
-    gcsOBJECT                    object;
+    gcsOBJECT                   object;
 
     /* Pointer to a gckOS object. */
-    gckOS                        os;
+    gckOS                       os;
 
     /* Locking mutex. */
-    gctPOINTER                    mutex;
+    gctPOINTER                  mutex;
 
     /* Allocation parameters. */
-    gctSIZE_T                    allocationSize;
+    gctSIZE_T                   allocationSize;
 
     /* Heap list. */
     gcskHEAP_PTR                heap;
-#if gcdDEBUG
-    gctUINT64                    timeStamp;
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
+    gctUINT64                   timeStamp;
 #endif
 
-#if VIVANTE_PROFILER || gcdDEBUG
+#if VIVANTE_PROFILER || gcmIS_DEBUG(gcdDEBUG_CODE)
     /* Profile information. */
-    gctUINT32                    allocCount;
-    gctUINT64                    allocBytes;
-    gctUINT64                    allocBytesMax;
-    gctUINT64                    allocBytesTotal;
-    gctUINT32                    heapCount;
-    gctUINT32                    heapCountMax;
-    gctUINT64                    heapMemory;
-    gctUINT64                    heapMemoryMax;
+    gctUINT32                   allocCount;
+    gctUINT64                   allocBytes;
+    gctUINT64                   allocBytesMax;
+    gctUINT64                   allocBytesTotal;
+    gctUINT32                   heapCount;
+    gctUINT32                   heapCountMax;
+    gctUINT64                   heapMemory;
+    gctUINT64                   heapMemoryMax;
 #endif
 };
 
@@ -107,7 +107,7 @@ struct _gckHEAP
 ***** Static Support Functions *************************************************
 *******************************************************************************/
 
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
 static gctSIZE_T
 _DumpHeap(
     IN gcskHEAP_PTR Heap
@@ -253,7 +253,7 @@ _CompactKernelHeap(
                 heap->next->prev = heap->prev;
             }
 
-#if VIVANTE_PROFILER || gcdDEBUG
+#if VIVANTE_PROFILER || gcmIS_DEBUG(gcdDEBUG_CODE)
             /* Update profiling. */
             Heap->heapCount  -= 1;
             Heap->heapMemory -= heap->size + gcmSIZEOF(gcskHEAP);
@@ -281,7 +281,7 @@ _CompactKernelHeap(
             gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HEAP,
                            "Freeing heap 0x%x (%lu bytes)",
                            heap, heap->size + gcmSIZEOF(gcskHEAP));
-            gcmkVERIFY_OK(gckOS_FreeVirtualMemory(Heap->os, heap));
+            gcmkVERIFY_OK(gckOS_FreeMemory(Heap->os, heap));
         }
 
         /* Acquire the mutex again. */
@@ -300,23 +300,23 @@ _CompactKernelHeap(
 
 /*******************************************************************************
 **
-**    gckHEAP_Construct
+**  gckHEAP_Construct
 **
-**    Construct a new gckHEAP object.
+**  Construct a new gckHEAP object.
 **
-**    INPUT:
+**  INPUT:
 **
-**        gckOS Os
-**            Pointer to a gckOS object.
+**      gckOS Os
+**          Pointer to a gckOS object.
 **
-**        gctSIZE_T AllocationSize
-**            Minimum size per arena.
+**      gctSIZE_T AllocationSize
+**          Minimum size per arena.
 **
-**    OUTPUT:
+**  OUTPUT:
 **
-**        gckHEAP * Heap
-**            Pointer to a variable that will hold the pointer to the gckHEAP
-**            object.
+**      gckHEAP * Heap
+**          Pointer to a variable that will hold the pointer to the gckHEAP
+**          object.
 */
 gceSTATUS
 gckHEAP_Construct(
@@ -327,6 +327,7 @@ gckHEAP_Construct(
 {
     gceSTATUS status;
     gckHEAP heap = gcvNULL;
+    gctPOINTER pointer = gcvNULL;
 
     gcmkHEADER_ARG("Os=0x%x AllocationSize=%lu", Os, AllocationSize);
 
@@ -335,21 +336,22 @@ gckHEAP_Construct(
     gcmkVERIFY_ARGUMENT(Heap != gcvNULL);
 
     /* Allocate the gckHEAP object. */
-    gcmkONERROR(
-        gckOS_AllocateMemory(Os,
-                             gcmSIZEOF(struct _gckHEAP),
-                             (gctPOINTER *) &heap));
+    gcmkONERROR(gckOS_AllocateMemory(Os,
+                                     gcmSIZEOF(struct _gckHEAP),
+                                     &pointer));
+
+    heap = pointer;
 
     /* Initialize the gckHEAP object. */
     heap->object.type    = gcvOBJ_HEAP;
     heap->os             = Os;
     heap->allocationSize = AllocationSize;
     heap->heap           = gcvNULL;
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
     heap->timeStamp      = 0;
 #endif
 
-#if VIVANTE_PROFILER || gcdDEBUG
+#if VIVANTE_PROFILER || gcmIS_DEBUG(gcdDEBUG_CODE)
     /* Zero the counters. */
     heap->allocCount      = 0;
     heap->allocBytes      = 0;
@@ -368,7 +370,7 @@ gckHEAP_Construct(
     *Heap = heap;
 
     /* Success. */
-    gcmkFOOTER_ARG("*Heap=0x%x", Heap);
+    gcmkFOOTER_ARG("*Heap=0x%x", *Heap);
     return gcvSTATUS_OK;
 
 OnError:
@@ -386,18 +388,18 @@ OnError:
 
 /*******************************************************************************
 **
-**    gckHEAP_Destroy
+**  gckHEAP_Destroy
 **
-**    Destroy a gckHEAP object.
+**  Destroy a gckHEAP object.
 **
-**    INPUT:
+**  INPUT:
 **
-**        gckHEAP Heap
-**            Pointer to a gckHEAP object to destroy.
+**      gckHEAP Heap
+**          Pointer to a gckHEAP object to destroy.
 **
-**    OUTPUT:
+**  OUTPUT:
 **
-**        Nothing.
+**      Nothing.
 */
 gceSTATUS
 gckHEAP_Destroy(
@@ -405,7 +407,7 @@ gckHEAP_Destroy(
     )
 {
     gcskHEAP_PTR heap;
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
     gctSIZE_T leaked = 0;
 #endif
 
@@ -416,13 +418,13 @@ gckHEAP_Destroy(
         /* Unlink heap from linked list. */
         Heap->heap = heap->next;
 
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
         /* Check for leaked memory. */
         leaked += _DumpHeap(heap);
 #endif
 
         /* Free the heap. */
-        gcmkVERIFY_OK(gckOS_FreeVirtualMemory(Heap->os, heap));
+        gcmkVERIFY_OK(gckOS_FreeMemory(Heap->os, heap));
     }
 
     /* Free the mutex. */
@@ -432,7 +434,7 @@ gckHEAP_Destroy(
     gcmkVERIFY_OK(gckOS_FreeMemory(Heap->os, Heap));
 
     /* Success. */
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
     gcmkFOOTER_ARG("leaked=%lu", leaked);
 #else
     gcmkFOOTER_NO();
@@ -442,23 +444,23 @@ gckHEAP_Destroy(
 
 /*******************************************************************************
 **
-**    gckHEAP_Allocate
+**  gckHEAP_Allocate
 **
-**    Allocate data from the heap.
+**  Allocate data from the heap.
 **
-**    INPUT:
+**  INPUT:
 **
-**        gckHEAP Heap
-**            Pointer to a gckHEAP object.
+**      gckHEAP Heap
+**          Pointer to a gckHEAP object.
 **
-**        IN gctSIZE_T Bytes
-**            Number of byte to allocate.
+**      IN gctSIZE_T Bytes
+**          Number of byte to allocate.
 **
-**    OUTPUT:
+**  OUTPUT:
 **
-**        gctPOINTER * Memory
-**            Pointer to a variable that will hold the address of the allocated
-**            memory.
+**      gctPOINTER * Memory
+**          Pointer to a variable that will hold the address of the allocated
+**          memory.
 */
 gceSTATUS
 gckHEAP_Allocate(
@@ -491,7 +493,7 @@ gckHEAP_Allocate(
     acquired = gcvTRUE;
 
     /* Check if this allocation is bigger than the default allocation size. */
-    if (bytes > Heap->allocationSize - gcmSIZEOF(gcskHEAP))
+    if (bytes > Heap->allocationSize - gcmSIZEOF(gcskHEAP) - gcmSIZEOF(gcskNODE))
     {
         /* Adjust allocation size. */
         Heap->allocationSize = bytes * 2;
@@ -508,7 +510,7 @@ gckHEAP_Allocate(
             for (heap = Heap->heap; heap != gcvNULL; heap = heap->next)
             {
                 /* Check if this heap has enough bytes to hold the request. */
-                if (bytes < heap->size)
+                if (bytes <= heap->size - gcmSIZEOF(gcskNODE))
                 {
                     prevFree = gcvNULL;
 
@@ -538,7 +540,7 @@ gckHEAP_Allocate(
                 /* Compact the heap. */
                 gcmkVERIFY_OK(_CompactKernelHeap(Heap));
 
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
                 gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_HEAP,
                                "===== KERNEL HEAP =====");
                 gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_HEAP,
@@ -578,9 +580,9 @@ gckHEAP_Allocate(
 
     /* Allocate a new heap. */
     gcmkONERROR(
-        gckOS_AllocateVirtualMemory(Heap->os,
-                                    Heap->allocationSize,
-                                    &memory));
+        gckOS_AllocateMemory(Heap->os,
+                             Heap->allocationSize,
+                             &memory));
 
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HEAP,
                    "Allocated heap 0x%x (%lu bytes)",
@@ -625,7 +627,7 @@ gckHEAP_Allocate(
     /* No previous free. */
     prevFree = gcvNULL;
 
-#if VIVANTE_PROFILER || gcdDEBUG
+#if VIVANTE_PROFILER || gcmIS_DEBUG(gcdDEBUG_CODE)
     /* Update profiling. */
     Heap->heapCount  += 1;
     Heap->heapMemory += Heap->allocationSize;
@@ -656,9 +658,9 @@ UseNode:
         }
 
         /* Move the heap to the front of the list. */
-        heap->next          = Heap->heap;
-        heap->prev          = gcvNULL;
-        Heap->heap          = heap;
+        heap->next       = Heap->heap;
+        heap->prev       = gcvNULL;
+        Heap->heap       = heap;
         heap->next->prev = heap;
     }
 
@@ -693,11 +695,11 @@ UseNode:
     /* Mark node as used. */
     used->bytes     = bytes;
     used->next      = gcdIN_USE;
-#if gcdDEBUG
+#if gcmIS_DEBUG(gcdDEBUG_CODE)
     used->timeStamp = ++Heap->timeStamp;
 #endif
 
-#if VIVANTE_PROFILER || gcdDEBUG
+#if VIVANTE_PROFILER || gcmIS_DEBUG(gcdDEBUG_CODE)
     /* Update profile counters. */
     Heap->allocCount      += 1;
     Heap->allocBytes      += bytes;
@@ -727,7 +729,7 @@ OnError:
     if (memory != gcvNULL)
     {
         /* Free the heap memory. */
-        gckOS_FreeVirtualMemory(Heap->os, memory);
+        gckOS_FreeMemory(Heap->os, memory);
     }
 
     /* Return the status. */
@@ -737,21 +739,21 @@ OnError:
 
 /*******************************************************************************
 **
-**    gckHEAP_Free
+**  gckHEAP_Free
 **
-**    Free allocated memory from the heap.
+**  Free allocated memory from the heap.
 **
-**    INPUT:
+**  INPUT:
 **
-**        gckHEAP Heap
-**            Pointer to a gckHEAP object.
+**      gckHEAP Heap
+**          Pointer to a gckHEAP object.
 **
-**        IN gctPOINTER Memory
-**            Pointer to memory to free.
+**      IN gctPOINTER Memory
+**          Pointer to memory to free.
 **
-**    OUTPUT:
+**  OUTPUT:
 **
-**        NOTHING.
+**      NOTHING.
 */
 gceSTATUS
 gckHEAP_Free(
@@ -778,7 +780,7 @@ gckHEAP_Free(
     /* Mark the node as freed. */
     node->next = gcvNULL;
 
-#if VIVANTE_PROFILER || gcdDEBUG
+#if VIVANTE_PROFILER || gcmIS_DEBUG(gcdDEBUG_CODE)
     /* Update profile counters. */
     Heap->allocBytes -= node->bytes;
 #endif
@@ -856,201 +858,4 @@ gckHEAP_ProfileEnd(
 /*******************************************************************************
 ***** Test Code ****************************************************************
 *******************************************************************************/
-
-#if defined gcdHAL_TEST
-
-#include <stdlib.h>
-#define gcmRANDOM(n) (rand() % n)
-
-typedef struct
-{
-    gctSIZE_T    bytes;
-    gctPOINTER    memory;
-}
-gcskHEAP_TEST;
-
-gceSTATUS
-gckHEAP_Test(
-    IN gckHEAP Heap,
-    IN gctSIZE_T Vectors,
-    IN gctSIZE_T MaxSize
-    )
-{
-    gctSIZE_T nodeCount = MaxSize / 4;
-    gcskHEAP_TEST * nodes = gcvNULL;
-    gctSIZE_T bytes, index, i;
-    gceSTATUS status, failure = gcvSTATUS_OK;
-    gctUINT8_PTR memory;
-    gcskHEAP_PTR heap, current;
-
-    /* Allocate the node array. */
-    gcmkONERROR(
-        gckOS_AllocateMemory(Heap->os,
-                             nodeCount * gcmSIZEOF(gcskHEAP_TEST),
-                             (gctPOINTER *) &nodes));
-
-    /* Mark all nodes as free. */
-    gcmkONERROR(
-        gckOS_ZeroMemory(nodes, nodeCount * gcmSIZEOF(gcskHEAP_TEST)));
-
-    gcmkONERROR(gckHEAP_ProfileStart(Heap));
-
-    /* Loop through all vectors. */
-    while (Vectors-- > 0)
-    {
-        /* Get a random index. */
-        index = gcmRANDOM(nodeCount);
-
-        /* Test if we need to allocate pages. */
-        if (nodes[index].bytes == 0)
-        {
-            /* Generate a random byte size. */
-            do
-            {
-                bytes = gcmALIGN(gcmRANDOM(MaxSize), gcmSIZEOF(gctSIZE_T));
-            }
-            while (bytes == 0);
-
-            /* Allocate pages. */
-            status = gckHEAP_Allocate(Heap, bytes, (gctPOINTER *) &memory);
-
-            if (gcmIS_SUCCESS(status))
-            {
-                /* Mark node as allocated. */
-                nodes[index].bytes  = bytes;
-                nodes[index].memory = memory;
-
-                /* Put signature in the memory. */
-                for (i = 0; i < bytes; i += gcmSIZEOF(gctSIZE_T))
-                {
-                    *(gctSIZE_T_PTR) (memory + i) = index;
-                }
-            }
-            else
-            {
-                gcmkTRACE(gcvLEVEL_WARNING,
-                          "%s(%d): Failed to allocate %lu bytes",
-                          __FUNCTION__, __LINE__, bytes);
-            }
-        }
-        else
-        {
-            /* Verify the memory. */
-            memory = nodes[index].memory;
-            for (i = 0; i < nodes[index].bytes; i += gcmSIZEOF(gctSIZE_T))
-            {
-                if (*(gctSIZE_T_PTR) (memory + i) != index)
-                {
-                    gcmkFATAL("%s(%d): Corruption detected at index %lu",
-                              __FUNCTION__, __LINE__, index);
-
-                    failure = gcvSTATUS_HEAP_CORRUPTED;
-                }
-            }
-
-            /* Free the memory. */
-            status = gckHEAP_Free(Heap, memory);
-
-            if (gcmIS_ERROR(status))
-            {
-                gcmkFATAL("%s(%d): Cannot free %lu bytes at 0x%x (index=%lu)",
-                          __FUNCTION__, __LINE__,
-                          nodes[index].bytes, memory, index);
-
-                failure = status;
-            }
-
-            /* Mark the node as free. */
-            nodes[index].bytes = 0;
-        }
-
-        /* Verify the heap chain. */
-        i = 0;
-        for (current = Heap->heap; current != gcvNULL; current = current->next)
-        {
-            gctSIZE_T j;
-            for (heap = Heap->heap, j = 0; j < i; heap = heap->next, ++j)
-            {
-                if (heap == current)
-                {
-                    gcmkFATAL("%s(%d): Linked list corrupted for heap 0x%x",
-                              __FUNCTION__, __LINE__, current);
-
-                    failure = gcvSTATUS_HEAP_CORRUPTED;
-                }
-            }
-
-            if (heap != current)
-            {
-                gcmkFATAL("%s(%d): Linked list corrupted for heap 0x%x",
-                          __FUNCTION__, __LINE__, current);
-
-                failure = gcvSTATUS_HEAP_CORRUPTED;
-            }
-
-            ++i;
-        }
-    }
-
-    /* Walk the entire array of nodes. */
-    for (index = 0; index < nodeCount; ++index)
-    {
-        /* Test if we need to free pages. */
-        if (nodes[index].bytes != 0)
-        {
-            /* Verify the memory. */
-            memory = nodes[index].memory;
-            for (i = 0; i < nodes[index].bytes; i += gcmSIZEOF(gctSIZE_T))
-            {
-                if (*(gctSIZE_T_PTR) (memory + i) != index)
-                {
-                    gcmkFATAL("%s(%d): Corruption detected at page %lu",
-                              __FUNCTION__, __LINE__, index);
-
-                    failure = gcvSTATUS_HEAP_CORRUPTED;
-                }
-            }
-
-            /* Free the memory. */
-            status = gckHEAP_Free(Heap, memory);
-
-            if (gcmIS_ERROR(status))
-            {
-                gcmkFATAL("%s(%d): Cannot free %u bytes at 0x%x (index=%lu)",
-                          __FUNCTION__, __LINE__,
-                          nodes[index].bytes, memory, index);
-
-                failure = status;
-            }
-        }
-    }
-
-    /* Perform garbage collection. */
-    gcmkONERROR(_CompactKernelHeap(Heap));
-
-    /* Show profiling. */
-    gcmkONERROR(gckHEAP_ProfileEnd(Heap, "Profile"));
-
-    /* Verify we did not loose any nodes. */
-    if (Heap->heap != gcvNULL)
-    {
-        gcmkFATAL("%s(%d): Detected leaking in the heap.",
-                  __FUNCTION__, __LINE__);
-
-        failure = gcvSTATUS_HEAP_CORRUPTED;
-    }
-
-OnError:
-    /* Roll back. */
-    if (nodes != gcvNULL)
-    {
-        gcmkVERIFY_OK(
-            gckOS_FreeMemory(Heap->os, nodes));
-    }
-
-    /* Return the status. */
-    gcmkFOOTER();
-    return status;
-}
-#endif
 
