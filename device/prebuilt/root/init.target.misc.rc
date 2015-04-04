@@ -1,0 +1,30 @@
+on boot
+# LifeDJIK: switch framebuffer state
+    write /sys/class/graphics/fb0/state 1
+# LifeDJIK: ---
+# -> From init.rc
+    chown system system /sys/class/backlight/rk28_bl/brightness
+    # for HDMI facility
+    chown system system /dev/anx7150
+    chmod 777 /sys/class/hdmi/hdmi-0/enable
+    chmod 777 /sys/class/hdmi/hdmi-0/state
+    # for TvOut facility
+    chown system system /dev/rk1000_TVOUT
+
+# -> From init.rk29board.rc
+    chmod 777 dev/video0
+    chmod 777 dev/video1
+    chmod 777 dev/pmem_cam
+    chmod 0777 /dev/mtd/mtd0
+    # for sensor
+    chown system system /dev/input/event1
+    chown system system /dev/input/event2
+    chown system system /dev/input/event3
+    chown system system /dev/input/event4
+    chown system system /dev/input/event5
+    chown system system /dev/mma8452_daemon
+    chown system system /dev/akm8975_dev
+    chown system system /dev/akm8975_aot
+    # for gps
+    chmod 0660 /dev/ttyS3
+    chown system system /dev/ttyS3

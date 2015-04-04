@@ -1,0 +1,65 @@
+on early-init
+# LifeDJIK: NAND/MTD module
+    insmod /lib/modules/rk29xxnand_ko.ko
+# LifeDJIK: ---
+
+on init
+# LifeDJIK: emulated sdcard
+    mkdir /storage/emulated 0555 root root
+    mkdir /mnt/shell/emulated 0700 shell shell
+    mkdir /mnt/shell/emulated/0 0700 shell shell
+
+    symlink /mnt/shell/emulated/0 /storage/emulated/0
+    symlink /mnt/shell/emulated/0 /storage/emulated/legacy
+# ^-> for some reason auto-linking and auto-binding in zygote isn't working
+    symlink /storage/emulated/legacy /storage/sdcard0
+    symlink /storage/emulated/legacy /mnt/sdcard
+    symlink /storage/emulated/legacy /sdcard
+
+    export EXTERNAL_STORAGE /storage/emulated/legacy
+    export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
+    export EMULATED_STORAGE_TARGET /storage/emulated
+# LifeDJIK: ---
+# LifeDJIK: real sdcard
+    mkdir /storage/sdcard1 0700 root root
+
+    symlink /storage/sdcard1 /mnt/sdcard1
+    symlink /mnt/sdcard1 /sdcard1
+
+    export SECONDARY_STORAGE /storage/sdcard1    
+# LifeDJIK: ---
+# LifeDJIK: USB storage
+    mkdir /storage/usb 0700 root root
+
+    symlink /storage/usb /mnt/usb
+    symlink /mnt/usb /usb
+# LifeDJIK: ---
+
+on fs
+# LifeDJIK: mount filesystems
+    mount_all /fstab.rk29board
+# LifeDJIK: ---
+# LifeDJIK: emulated sdcard
+    setprop ro.crypto.fuse_sdcard true
+# LifeDJIK: ---
+
+on post-fs-data
+# LifeDJIK: emulated sdcard
+    mkdir /data/media 0770 media_rw media_rw
+# LifeDJIK: ---
+# LifeDJIK: post-fs-data completed
+    setprop vold.post_fs_data_done 1
+# LifeDJIK: ---
+
+# LifeDJIK: setup ext4 filesystem (if needed)
+service setup_ext4_fs /system/bin/setup_ext4_fs mtdblock7 mtdblock9
+    class core
+    user root
+    group root
+    oneshot
+# LifeDJIK: ---
+
+# LifeDJIK: emulated sdcard
+service sdcard /system/bin/sdcard /data/media /mnt/shell/emulated 1023 1023
+    class late_start
+# LifeDJIK: ---

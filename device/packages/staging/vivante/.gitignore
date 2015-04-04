@@ -1,0 +1,6 @@
+.*
+!.gitignore
+egl.cfg
+hal/driver
+Module.symvers
+modules.order

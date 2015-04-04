@@ -1,0 +1,3 @@
+# LifeDJIK: filesystem-related stuff
+import init.target.fs.rc
+# LifeDJIK: ---

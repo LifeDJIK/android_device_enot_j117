@@ -1,0 +1,8 @@
+# LifeDJIK: filesystem-related stuff
+import init.target.fs.rc
+# LifeDJIK: USB configuration
+import init.target.usb.rc
+# LifeDJIK: WiFi, some parts are in fs
+import init.target.wifi.rc
+# LifeDJIK: miscellaneous stuff
+import init.target.misc.rc

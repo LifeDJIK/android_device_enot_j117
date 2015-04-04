@@ -1,0 +1,4 @@
+on early-init
+# LifeDJIK: NAND/MTD module
+    insmod /lib/modules/rk29xxnand_ko.ko
+# LifeDJIK: ---
