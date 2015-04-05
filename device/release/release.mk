@@ -24,10 +24,10 @@ UPGRADE_TOOL := $(HOST_OUT_EXECUTABLES)/upgrade_tool
 
 # LifeDJIK: loader
 INSTALLED_LOADERBINARY_TARGET := $(PRODUCT_OUT)/$(notdir $(LOADER))
-$(INSTALLED_LOADERBINARY_TARGET): $(ACP) $(LOADER)
+$(INSTALLED_LOADERBINARY_TARGET): $(LOADER) $(ACP)
 	$(call pretty,"Target loader binary: $@")
 	@mkdir -p $(dir $@)
-	$(hide) $(ACP) -fp "$(LOADER)" "$@"
+	$(hide) $(ACP) -fp "$<" "$@"
 	$(call pretty,"Made loader binary: $@")
 
 loaderbinary: $(INSTALLED_LOADERBINARY_TARGET)
@@ -40,17 +40,17 @@ $(eval $(call copy-one-file,$(PARAMETER),$(INSTALLED_PARAMETERSOURCE_TARGET)))
 parametersource: $(INSTALLED_PARAMETERSOURCE_TARGET)
 
 INSTALLED_PARAMETERBINARY_TARGET := $(PRODUCT_OUT)/parameter.bin
-$(INSTALLED_PARAMETERBINARY_TARGET): $(RKCRC) $(INSTALLED_PARAMETERSOURCE_TARGET)
+$(INSTALLED_PARAMETERBINARY_TARGET): $(INSTALLED_PARAMETERSOURCE_TARGET) $(RKCRC)
 	$(call pretty,"Target parameter binary: $@")
-	$(hide) $(RKCRC) -p $(INSTALLED_PARAMETERSOURCE_TARGET) $@
+	$(hide) $(RKCRC) -p $< $@
 	$(call pretty,"Made parameter binary: $@")
 
 parameterbinary: $(INSTALLED_PARAMETERBINARY_TARGET)
 
 INSTALLED_PARAMETERIMAGE_TARGET := $(PRODUCT_OUT)/parameter.img
-$(INSTALLED_PARAMETERIMAGE_TARGET): $(MKPARAMETER) $(INSTALLED_PARAMETERBINARY_TARGET)
+$(INSTALLED_PARAMETERIMAGE_TARGET): $(INSTALLED_PARAMETERBINARY_TARGET) $(MKPARAMETER)
 	$(call pretty,"Target parameter image: $@")
-	$(hide) $(shell $(MKPARAMETER) $(INSTALLED_PARAMETERBINARY_TARGET) $@)
+	$(hide) $(shell $(MKPARAMETER) $< $@)
 	$(hide) $(call assert-max-image-size,$@,$(BOARD_PARAMETERIMAGE_PARTITION_SIZE),raw)
 	$(call pretty,"Made parameter image: $@")
 
@@ -59,7 +59,7 @@ parameterimage: $(INSTALLED_PARAMETERIMAGE_TARGET)
 
 # LifeDJIK: boot image
 INSTALLED_BOOTIMAGE_TARGET := $(PRODUCT_OUT)/boot.img
-$(INSTALLED_BOOTIMAGE_TARGET): $(RKKERNEL) $(INTERNAL_BOOTIMAGE_FILES)
+$(INSTALLED_BOOTIMAGE_TARGET): $(INTERNAL_BOOTIMAGE_FILES) $(RKKERNEL)
 	$(call pretty,"Target boot image: $@")
 	$(hide) $(RKKERNEL) -pack $(PRODUCT_OUT)/ramdisk.img $@
 	$(hide) $(call assert-max-image-size,$@,$(BOARD_BOOTIMAGE_PARTITION_SIZE),raw)
@@ -68,7 +68,7 @@ $(INSTALLED_BOOTIMAGE_TARGET): $(RKKERNEL) $(INTERNAL_BOOTIMAGE_FILES)
 
 # LifeDJIK: recovery image
 INSTALLED_RECOVERYIMAGE_TARGET := $(PRODUCT_OUT)/recovery.img
-$(INSTALLED_RECOVERYIMAGE_TARGET): $(RKKERNEL) $(recovery_ramdisk)
+$(INSTALLED_RECOVERYIMAGE_TARGET): $(recovery_ramdisk) $(RKKERNEL)
 	$(call pretty,"Target recovery image: $@")
 	$(hide) $(RKKERNEL) -pack $(PRODUCT_OUT)/ramdisk-recovery.img $@
 	$(hide) $(call assert-max-image-size,$@,$(BOARD_RECOVERYIMAGE_PARTITION_SIZE),raw)
@@ -77,9 +77,9 @@ $(INSTALLED_RECOVERYIMAGE_TARGET): $(RKKERNEL) $(recovery_ramdisk)
 
 # LifeDJIK: kernel image
 INSTALLED_KERNELIMAGE_TARGET := $(PRODUCT_OUT)/kernel.img
-$(INSTALLED_KERNELIMAGE_TARGET): $(RKKERNEL) $(INSTALLED_KERNEL_TARGET)
+$(INSTALLED_KERNELIMAGE_TARGET): $(INSTALLED_KERNEL_TARGET) $(RKKERNEL)
 	$(call pretty,"Target kernel image: $@")
-	$(hide) $(RKKERNEL) -pack $(INSTALLED_KERNEL_TARGET) $@
+	$(hide) $(RKKERNEL) -pack $< $@
 	$(hide) $(call assert-max-image-size,$@,$(BOARD_KERNELIMAGE_PARTITION_SIZE),raw)
 	$(call pretty,"Made kernel image: $@")
 
@@ -106,10 +106,10 @@ $(eval $(call copy-one-file,$(INSTALLED_SYSTEMIMAGE_TARGET),$(UPDATE_SYSTEMIMAGE
 UPDATE_IMAGES := $(UPDATE_BOOTIMAGE_TARGET) $(UPDATE_KERNELIMAGE_TARGET) $(UPDATE_RECOVERYIMAGE_TARGET) $(UPDATE_SYSTEMIMAGE_TARGET)
 
 UPDATE_LOADERBINARY_TARGET := $(PRODUCT_OUT)/update/$(notdir $(INSTALLED_LOADERBINARY_TARGET))
-$(UPDATE_LOADERBINARY_TARGET): $(ACP) $(INSTALLED_LOADERBINARY_TARGET)
+$(UPDATE_LOADERBINARY_TARGET): $(INSTALLED_LOADERBINARY_TARGET) $(ACP)
 	$(call pretty,"Update loader binary: $@")
 	@mkdir -p $(dir $@)
-	$(hide) $(ACP) -fp "$(INSTALLED_LOADERBINARY_TARGET)" "$@"
+	$(hide) $(ACP) -fp "$<" "$@"
 	$(call pretty,"Made loader binary: $@")
 
 UPDATE_BINARIES := $(UPDATE_LOADERBINARY_TARGET)
@@ -134,15 +134,15 @@ UPDATE_DIRECTORY := $(PRODUCT_OUT)/update
 $(UPDATE_DIRECTORY): $(UPDATE_OBJECTS)
 
 INSTALLED_UPDATEBINARY_TARGET := $(PRODUCT_OUT)/update.bin
-$(INSTALLED_UPDATEBINARY_TARGET): $(AFPTOOL) $(UPDATE_DIRECTORY)
+$(INSTALLED_UPDATEBINARY_TARGET): $(UPDATE_DIRECTORY) $(AFPTOOL)
 	$(call pretty,"Target update binary: $@")
-	$(hide) $(AFPTOOL) -pack $(UPDATE_DIRECTORY) $@
+	$(hide) $(AFPTOOL) -pack $< $@
 	$(call pretty,"Made update binary: $@")
 
 updatebinary: $(INSTALLED_UPDATEBINARY_TARGET)
 
 INSTALLED_UPDATEIMAGE_TARGET := $(PRODUCT_OUT)/update.img
-$(INSTALLED_UPDATEIMAGE_TARGET): $(IMG_MAKER) $(UPDATE_LOADERBINARY_TARGET) $(INSTALLED_UPDATEBINARY_TARGET)
+$(INSTALLED_UPDATEIMAGE_TARGET): $(UPDATE_LOADERBINARY_TARGET) $(INSTALLED_UPDATEBINARY_TARGET) $(IMG_MAKER)
 	$(call pretty,"Target update image: $@")
 	$(hide) $(IMG_MAKER) -rk29 "$(UPDATE_LOADERBINARY_TARGET)" 1 2 42 $(INSTALLED_UPDATEBINARY_TARGET) $@
 	$(call pretty,"Made update image: $@")
