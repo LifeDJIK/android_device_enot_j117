@@ -1,0 +1,33 @@
+#!enable_script
+
+print "\nPlease KEEP your USB cable or DC-in connected\n"
+print "Do NOT remove SD card form the device\n\n"
+
+write_image PACKAGE:parameter PARAMETER:
+check_image PACKAGE:parameter PARAMETER:
+
+format MISC:
+
+write_blcmd update-bootloader
+write_loader PACKAGE:bootloader MISC: 0xC000
+
+write_image PACKAGE:kernel KERNEL:
+check_image PACKAGE:kernel KERNEL:
+
+write_image PACKAGE:boot BOOT:
+check_image PACKAGE:boot BOOT:
+
+write_image PACKAGE:recovery RECOVERY:
+check_image PACKAGE:recovery RECOVERY:
+
+format BACKUP:
+format USER:
+format KPANIC:
+format CACHE:
+
+write_image PACKAGE:system SYSTEM:
+check_image PACKAGE:system SYSTEM:
+
+format USERDATA:
+
+delete PACKAGE:

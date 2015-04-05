@@ -1,0 +1,9 @@
+package-file    package-file
+bootloader      RK29xxLoader(L)_V2.31.bin
+parameter       parameter
+kernel          Image/kernel.img
+boot            Image/boot.img
+recovery        Image/recovery.img
+system          Image/system.img
+update-script   update-script
+recover-script  recover-script

@@ -60,7 +60,7 @@ BOARD_FLASH_BLOCK_SIZE := 16384
 # LifeDJIK: ---
 
 # LifeDJIK: release tools
-BOARD_CUSTOM_BOOTIMG_MK := device/enot/j117/device/tools/tools.mk
+BOARD_CUSTOM_BOOTIMG_MK := device/enot/j117/device/release/release.mk
 # LifeDJIK: ---
 
 # LifeDJIK: recovery
