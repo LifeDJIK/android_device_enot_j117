@@ -417,7 +417,9 @@ static irqreturn_t zt2092_i2c_interrupt_handler(int irq, void *dev_id)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void zt2092_i2c_early_suspend(struct early_suspend *handler)
 {
-    if (cancel_work_sync(&zt2092_i2c_instance->work) || cancel_delayed_work_sync(&zt2092_i2c_instance->delayed_work)) {
+    bool cancelled_work = cancel_work_sync(&zt2092_i2c_instance->work);
+    bool cancelled_delayed_work = cancel_delayed_work_sync(&zt2092_i2c_instance->delayed_work);
+    if (cancelled_work || cancelled_delayed_work) {
         enable_irq(zt2092_i2c_instance->i2c_client->irq);
     }
     zt2092_i2c_write(ZT2092_I2C_REG_SETUP, ZT2092_I2C_MODE_SLEEP2);
