@@ -14,9 +14,21 @@
 
 /* Base */
 #define OUT_TYPE    SCREEN_RGB
-#define OUT_FACE    OUT_D888_P666  
+#define OUT_FACE    OUT_D888_P666
 #define OUT_CLK     65000000
 #define LCDC_ACLK   500000000//312000000           //29 lcdc axi DMA ÆµÂÊ
+
+
+//~ #define OUT_P888            0
+//~ #define OUT_P666            1
+//~ #define OUT_P565            2
+//~ #define OUT_S888x           4
+//~ #define OUT_CCIR656         6
+//~ #define OUT_S888            8
+//~ #define OUT_S888DUMY        12
+//~ #define OUT_P16BPP4         24
+//~ #define OUT_D888_P666       0x21
+//~ #define OUT_D888_P565       0x22
 
 /* Timing */
 #define H_PW            10

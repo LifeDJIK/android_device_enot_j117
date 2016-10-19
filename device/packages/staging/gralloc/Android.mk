@@ -54,7 +54,7 @@ NONPAGED_MEMORY_CACHEABLE    ?= 0
 NONPAGED_MEMORY_BUFFERABLE   ?= 0
 
 # Enable swap rectangle - EXPERIMENTAL
-SUPPORT_SWAP_RECTANGLE       ?= 0
+SUPPORT_SWAP_RECTANGLE       ?= 1
 
 # Enable memory bank alignment
 USE_BANK_ALIGNMENT           ?= 0
@@ -72,7 +72,7 @@ USE_OPENCL ?= 0
 DEFER_RESOLVES               ?= 0
 
 # CopyBlt Optimization - EXPERIMENTAL.
-COPYBLT_OPTIMIZATION         ?= 0
+COPYBLT_OPTIMIZATION         ?= 1
 
 # Use linear buffer for GPU apps. Make sure HWC has 2D composition.
 ENABLE_LINEAR_BUFFER_FOR_GPU ?= 0
@@ -194,8 +194,9 @@ LOCAL_SRC_FILES := \
 # Can be used to test non-VSYNC-locked rendering.
 LOCAL_CFLAGS := \
 	$(CFLAGS) \
-	-DLOG_TAG=\"v_gralloc\" \
-	-DDISABLE_FRONT_BUFFER
+	-DLOG_TAG=\"v_gralloc\"
+
+#~ 	-DDISABLE_FRONT_BUFFER
 
 LOCAL_CFLAGS += \
 	-DLOG_NDEBUG=1
